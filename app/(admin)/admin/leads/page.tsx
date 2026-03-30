@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -878,7 +878,7 @@ export default function LeadManagement() {
         onClose={() => setModal({ type: "none" })}
       />
 
-      <div style={{ padding: "24px 28px" }}>
+      <div style={{ padding: "24px 0" }}>
         {/* Header */}
         <div style={{ marginBottom: 20 }}>
           <h2 style={pageTitle}>Lead Management</h2>
@@ -991,7 +991,7 @@ export default function LeadManagement() {
                       "Email",
                       "Phone",
                       "Subject",
-                      "Message",
+                      // "Message",
                       "Status",
                       "Date",
                       "Notes",
@@ -1005,7 +1005,7 @@ export default function LeadManagement() {
                 </thead>
                 <tbody>
                   {filteredLeads.map((lead, idx) => (
-                    <>
+                    <React.Fragment key={lead._id}>
                       <tr
                         key={lead._id}
                         className="lead-row"
@@ -1041,13 +1041,13 @@ export default function LeadManagement() {
                         <td style={td}>
                           <span style={subjectPill}>{lead.subject}</span>
                         </td>
-                        <td style={{ ...td, maxWidth: 180, color: "#555" }}>
+                        {/* <td style={{ ...td, maxWidth: 180, color: "#555" }}>
                           <span title={lead.message}>
                             {lead.message.length > 45
                               ? lead.message.slice(0, 45) + "…"
                               : lead.message}
                           </span>
-                        </td>
+                        </td> */}
 
                         {/* Status */}
                         <td style={td}>
@@ -1265,7 +1265,7 @@ export default function LeadManagement() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </React.Fragment>
                   ))}
 
                   {filteredLeads.length === 0 && (
