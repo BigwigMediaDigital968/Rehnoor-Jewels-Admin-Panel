@@ -1,26 +1,599 @@
 @import "tailwindcss";
 
+@theme {
+  --color-rj-emerald: #003720;
+  --color-rj-emerald-light: #004d2d;
+  --color-rj-emerald-dark: #002410;
+  --color-rj-emerald-muted: #0a4a2a;
+  --color-rj-gold: #fcc151;
+  --color-rj-gold-light: #fdd07a;
+  --color-rj-gold-dark: #f5a623;
+  --color-rj-gold-pale: #fef4dc;
+  --color-rj-ivory: #faf8f3;
+  --color-rj-ivory-dark: #f2ede2;
+  --color-rj-charcoal: #1a1a1a;
+  --color-rj-ash: #6b6b6b;
+  --color-rj-bone: #e8e3da;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* ── Brand Colors (runtime aliases) ── */
+  --rj-emerald: #003720;
+  --rj-emerald-light: #004d2d;
+  --rj-emerald-dark: #002410;
+  --rj-gold: #fcc151;
+  --rj-gold-light: #fdd07a;
+  --rj-gold-dark: #f5a623;
+  --rj-gold-pale: #fef4dc;
+  --rj-ivory: #faf8f3;
+  --rj-ivory-dark: #f2ede2;
+  --rj-charcoal: #1a1a1a;
+  --rj-ash: #6b6b6b;
+  --rj-bone: #e8e3da;
+
+  /* ── Gradients ── */
+  --gradient-gold: linear-gradient(
+    135deg,
+    #fcc151 0%,
+    #f5a623 50%,
+    #e8930a 100%
+  );
+  --gradient-emerald: linear-gradient(
+    135deg,
+    #004d2d 0%,
+    #003720 50%,
+    #002410 100%
+  );
+  --gradient-hero: linear-gradient(
+    160deg,
+    #002410 0%,
+    #003720 40%,
+    #004d2d 100%
+  );
+  --gradient-gold-shimmer: linear-gradient(
+    90deg,
+    transparent 0%,
+    #ffe8a3 50%,
+    transparent 100%
+  );
+  --gradient-overlay: linear-gradient(
+    to bottom,
+    transparent 40%,
+    rgba(0, 55, 32, 0.95) 100%
+  );
+
+  /* ── Glassmorphism ── */
+  --glass-bg: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(252, 193, 81, 0.15);
+  --glass-blur: blur(16px);
+
+  /* ── Shadows ── */
+  --shadow-gold: 0 4px 24px rgba(252, 193, 81, 0.25);
+  --shadow-emerald: 0 4px 24px rgba(0, 55, 32, 0.2);
+  --shadow-card: 0 8px 40px rgba(0, 0, 0, 0.08);
+  --shadow-elevated: 0 20px 60px rgba(0, 0, 0, 0.15);
+
+  /* ── Transitions ── */
+  --transition-smooth: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --transition-slow: all 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ── Spacing ── */
+  --spacing-section: 7rem;
+  --spacing-container: 1.5rem;
+  --radius-card: 0.75rem;
+
+  /* ── Z-index layers ── */
+  --z-header: 100;
+  --z-mega-menu: 99;
+  --z-overlay: 98;
+  --z-modal: 200;
+  --z-toast: 300;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* ============================================
+   BASE RESET & TYPOGRAPHY
+   ============================================ */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  scroll-padding-top: 80px;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* next/font injects --font-body on <html>; fallback to DM Sans from Google */
+  font-family: var(--font-body, "DM Sans"), system-ui, sans-serif;
+  background-color: var(--rj-ivory);
+  color: var(--rj-charcoal);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* ── Selection ── */
+::selection {
+  background: var(--rj-gold);
+  color: var(--rj-emerald);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--rj-ivory-dark);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--rj-gold);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--rj-gold-dark);
+}
+
+/* ── Focus ── */
+:focus-visible {
+  outline: 2px solid var(--rj-gold);
+  outline-offset: 3px;
+}
+
+/* ============================================
+   TYPOGRAPHY COMPONENT CLASSES
+   In @layer components — cascade-safe, never purged
+   ============================================ */
+@layer components {
+  /* ── Heading scale ── */
+  .heading-xl {
+    font-family:
+      var(--font-display, "Cormorant Garamond"), "Playfair Display", Georgia,
+      serif;
+    font-size: clamp(3.5rem, 8vw, 8rem);
+    font-weight: 300;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+
+  .heading-lg {
+    font-family:
+      var(--font-display, "Cormorant Garamond"), "Playfair Display", Georgia,
+      serif;
+    font-size: clamp(2.5rem, 5vw, 5rem);
+    font-weight: 300;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+  }
+
+  .heading-md {
+    font-family:
+      var(--font-display, "Cormorant Garamond"), "Playfair Display", Georgia,
+      serif;
+    font-size: clamp(1.75rem, 3vw, 3rem);
+    font-weight: 400;
+    line-height: 1.2;
+  }
+
+  .heading-sm {
+    font-family:
+      var(--font-display, "Cormorant Garamond"), "Playfair Display", Georgia,
+      serif;
+    font-size: clamp(1.25rem, 2vw, 2rem);
+    font-weight: 400;
+    line-height: 1.3;
+  }
+
+  .label-accent {
+    font-family: var(--font-accent, "Cinzel"), Georgia, serif;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+  }
+
+  /* ── Brand text ── */
+  .text-gold-shimmer {
+    background: var(--gradient-gold);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ── Dividers ── */
+  .divider-gold {
+    width: 60px;
+    height: 2px;
+    background: var(--gradient-gold);
+    border-radius: 9999px;
+  }
+
+  .divider-gold-center {
+    width: 60px;
+    height: 2px;
+    background: var(--gradient-gold);
+    border-radius: 9999px;
+    margin: 0 auto;
+  }
+
+  /* ── Gold underline hover ── */
+  .hover-gold-line {
+    position: relative;
+  }
+  .hover-gold-line::after {
+    content: "";
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 1px;
+    background: var(--rj-gold);
+    transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .hover-gold-line:hover::after {
+    width: 100%;
+  }
+
+  /* ── Buttons ── */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 2.25rem;
+    background: var(--gradient-gold);
+    color: var(--rj-emerald);
+    font-family: var(--font-accent, "Cinzel"), Georgia, serif;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 0;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-primary::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: var(--gradient-gold-shimmer);
+    transition: left 0.5s ease;
+  }
+  .btn-primary:hover::before {
+    left: 100%;
+  }
+  .btn-primary:hover {
+    box-shadow: var(--shadow-gold);
+    transform: translateY(-1px);
+  }
+
+  .btn-outline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 2.25rem;
+    background: transparent;
+    color: var(--rj-gold);
+    font-family: var(--font-accent, "Cinzel"), Georgia, serif;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    border: 1px solid var(--rj-gold);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+  }
+  .btn-outline:hover {
+    background: var(--rj-gold);
+    color: var(--rj-emerald) !important;
+    box-shadow: var(--shadow-gold);
+  }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.75rem;
+    background: transparent;
+    color: var(--rj-charcoal);
+    font-family: var(--font-accent, "Cinzel"), Georgia, serif;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    border: 1px solid var(--rj-bone);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+  }
+  .btn-ghost:hover {
+    border-color: var(--rj-gold);
+    color: var(--rj-gold);
+  }
+
+  /* ── Cards ── */
+  .card-product {
+    position: relative;
+    background: white;
+    border-radius: var(--radius-card);
+    overflow: hidden;
+    transition: var(--transition-smooth);
+    cursor: pointer;
+  }
+  .card-product:hover {
+    box-shadow: var(--shadow-elevated);
+    transform: translateY(-4px);
+  }
+  .card-product-image {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 3 / 4;
+    background: var(--rj-ivory-dark);
+  }
+  .card-product-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .card-product:hover .card-product-image img {
+    transform: scale(1.06);
+  }
+
+  /* ── Section layout ── */
+  .section-padding {
+    padding: var(--spacing-section) 0;
+  }
+  .container-rj {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 var(--spacing-container);
+  }
+  @media (min-width: 768px) {
+    .container-rj {
+      padding: 0 3rem;
+    }
+  }
+  @media (min-width: 1280px) {
+    .container-rj {
+      padding: 0 5rem;
+    }
+  }
+
+  /* ── Glassmorphism ── */
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+  }
+  .glass-dark {
+    background: rgba(0, 55, 32, 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(252, 193, 81, 0.2);
+  }
+
+  /* ── Marquee ── */
+  .marquee-track {
+    display: flex;
+    width: max-content;
+    animation: marquee 30s linear infinite;
+  }
+  .marquee-track:hover {
+    animation-play-state: paused;
+  }
+
+  /* ── Skeleton shimmer ── */
+  .skeleton {
+    background: linear-gradient(90deg, #f0ede7 25%, #e8e3da 50%, #f0ede7 75%);
+    background-size: 1000px 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  /* ── Announcement bar ── */
+  .announcement-bar {
+    background: var(--rj-emerald);
+    color: var(--rj-gold);
+    font-family: var(--font-accent, "Cinzel"), Georgia, serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 0.6rem 0;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ── Scroll animations ── */
+  .fade-up {
+    opacity: 0;
+    transform: translateY(30px);
+    transition:
+      opacity 0.7s ease,
+      transform 0.7s ease;
+  }
+  .fade-up.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .fade-in {
+    opacity: 0;
+    transition: opacity 0.7s ease;
+  }
+  .fade-in.visible {
+    opacity: 1;
+  }
+
+  /* ── Image reveal ── */
+  .img-reveal {
+    clip-path: inset(100% 0 0 0);
+    transition: clip-path 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .img-reveal.visible {
+    clip-path: inset(0% 0 0 0);
+  }
+
+  /* ── Badges ── */
+  .badge-gold {
+    display: inline-block;
+    padding: 0.2rem 0.75rem;
+    background: var(--gradient-gold);
+    color: var(--rj-emerald);
+    font-family: var(--font-accent, "Cinzel"), Georgia, serif;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    border-radius: 9999px;
+  }
+  .badge-emerald {
+    display: inline-block;
+    padding: 0.2rem 0.75rem;
+    background: var(--rj-emerald);
+    color: var(--rj-gold);
+    font-family: var(--font-accent, "Cinzel"), Georgia, serif;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    border-radius: 9999px;
+  }
+
+  /* ── Price ── */
+  .price-tag {
+    font-family: var(--font-body, "DM Sans"), system-ui, sans-serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--rj-charcoal);
+  }
+  .price-original {
+    font-size: 0.9rem;
+    color: var(--rj-ash);
+    text-decoration: line-through;
+  }
+
+  /* ── Input ── */
+  .input-rj {
+    width: 100%;
+    padding: 0.875rem 1.25rem;
+    background: white;
+    border: 1px solid var(--rj-bone);
+    border-radius: 0;
+    font-family: var(--font-body, "DM Sans"), system-ui, sans-serif;
+    font-size: 0.9rem;
+    color: var(--rj-charcoal);
+    transition: var(--transition-smooth);
+    outline: none;
+  }
+  .input-rj:focus {
+    border-color: var(--rj-gold);
+    box-shadow: 0 0 0 3px rgba(252, 193, 81, 0.1);
+  }
+} /* end @layer components */
+
+/* ============================================
+   UTILITIES — @layer utilities (highest specificity)
+   ============================================ */
+@layer utilities {
+  /* ── Font family helpers ── */
+  .font-display {
+    font-family:
+      var(--font-display, "Cormorant Garamond"), "Playfair Display", Georgia,
+      serif;
+  }
+  .font-accent {
+    font-family: var(--font-accent, "Cinzel"), Georgia, serif;
+  }
+  .font-body {
+    font-family: var(--font-body, "DM Sans"), system-ui, sans-serif;
+  }
+  /* Aliases */
+  .font-cinzel {
+    font-family: var(--font-accent, "Cinzel"), Georgia, serif;
+  }
+  .font-cormorant {
+    font-family:
+      var(--font-display, "Cormorant Garamond"), "Playfair Display", Georgia,
+      serif;
+  }
+  .font-dm-sans {
+    font-family: var(--font-body, "DM Sans"), system-ui, sans-serif;
+  }
+
+  /* ── Scrollbar hide ── */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* ── Text helpers ── */
+  .text-balance {
+    text-wrap: balance;
+  }
+  .text-gold-shimmer {
+    background: var(--gradient-gold);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ── BG shortcuts ── */
+  .bg-emerald {
+    background-color: var(--rj-emerald);
+  }
+  .bg-gold {
+    background-color: var(--rj-gold);
+  }
+  .bg-ivory {
+    background-color: var(--rj-ivory);
+  }
+  .bg-charcoal {
+    background-color: var(--rj-charcoal);
+  }
+} /* end @layer utilities */
+
+/* ============================================
+   KEYFRAMES — root level (not inside @layer)
+   ============================================ */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+@keyframes float-particle {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-120px) rotate(720deg);
+    opacity: 0;
+  }
 }
