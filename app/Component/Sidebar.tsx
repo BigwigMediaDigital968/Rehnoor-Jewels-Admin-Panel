@@ -24,8 +24,17 @@ const NAV_ITEMS = [
     children: [
       { id: "all-products", label: "All Products", href: "/admin/products" },
       { id: "add-product", label: "Add Product", href: "/admin/products/add" },
-      { id: "categories", label: "Categories", href: "/admin/categories" },
+      // { id: "categories", label: "Categories", href: "/admin/categories" },
+      // { id: "collections", label: "Collections", href: "/admin/collections" },
+    ],
+  },
+  {
+    id: "collections",
+    label: "Collections",
+    icon: "◇",
+    children: [
       { id: "collections", label: "Collections", href: "/admin/collections" },
+      { id: "categories", label: "Categories", href: "/admin/categories" },
     ],
   },
 
