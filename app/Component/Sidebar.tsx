@@ -76,7 +76,7 @@ const NAV_ITEMS = [
     id: "reviews",
     label: "Reviews & Ratings",
     icon: "★",
-    href: "/admin/reviews",
+    href: "/admin/reviews-management",
   },
 
   {
