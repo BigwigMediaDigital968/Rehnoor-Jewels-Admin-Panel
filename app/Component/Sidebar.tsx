@@ -33,7 +33,11 @@ const NAV_ITEMS = [
     label: "Collections",
     icon: "◇",
     children: [
-      { id: "collections", label: "Collections", href: "/admin/collections" },
+      {
+        id: "collections",
+        label: "Collection List",
+        href: "/admin/collections",
+      },
       { id: "categories", label: "Categories", href: "/admin/categories" },
     ],
   },

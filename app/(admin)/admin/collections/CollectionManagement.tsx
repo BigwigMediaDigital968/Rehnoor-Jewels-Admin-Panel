@@ -1200,462 +1200,8 @@ function FeedbackModal({
   );
 }
 
-// ─── View Drawer ──────────────────────────────────────────────────────────────
+// ─── View Pop up ──────────────────────────────────────────────────────────────
 
-// function ViewDrawer({
-//   collection,
-//   onClose,
-//   onEdit,
-//   onDelete,
-//   onToggle,
-//   onViewProduct,
-// }: {
-//   collection: Collection;
-//   onClose: () => void;
-//   onEdit: () => void;
-//   onDelete: () => void;
-//   onToggle: () => void;
-//   onViewProduct: (p: ProductSummary) => void;
-// }) {
-//   useEffect(() => {
-//     const fn = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-//     window.addEventListener("keydown", fn);
-//     return () => window.removeEventListener("keydown", fn);
-//   }, [onClose]);
-
-//   return (
-//     <div
-//       onClick={onClose}
-//       style={{
-//         position: "fixed",
-//         inset: 0,
-//         zIndex: 1100,
-//         background: "rgba(10,8,5,0.5)",
-//         backdropFilter: "blur(4px)",
-//         display: "flex",
-//         justifyContent: "flex-end",
-//       }}
-//     >
-//       <div
-//         onClick={(e) => e.stopPropagation()}
-//         style={{
-//           width: "100%",
-//           maxWidth: 560,
-//           height: "100%",
-//           background: "#FDFAF5",
-//           overflowY: "auto",
-//           boxShadow: "-8px 0 40px rgba(0,0,0,0.16)",
-//           animation: "cmSlideIn 0.28s cubic-bezier(0.16,1,0.3,1)",
-//           display: "flex",
-//           flexDirection: "column",
-//         }}
-//       >
-//         <div
-//           style={{
-//             height: 160,
-//             flexShrink: 0,
-//             position: "relative",
-//             overflow: "hidden",
-//             background: collection.heroImage
-//               ? `url(${collection.heroImage}) center/cover no-repeat`
-//               : collection.accentColor || "#1a3a2a",
-//           }}
-//         >
-//           <div
-//             style={{
-//               position: "absolute",
-//               inset: 0,
-//               background: "rgba(0,0,0,0.35)",
-//             }}
-//           />
-//           <div style={{ position: "absolute", top: 14, right: 14, zIndex: 2 }}>
-//             <button
-//               onClick={onClose}
-//               style={{
-//                 width: 30,
-//                 height: 30,
-//                 borderRadius: "50%",
-//                 border: "1px solid rgba(255,255,255,0.3)",
-//                 background: "rgba(0,0,0,0.4)",
-//                 color: "#fff",
-//                 cursor: "pointer",
-//                 fontSize: 13,
-//               }}
-//             >
-//               &#10005;
-//             </button>
-//           </div>
-//           <div
-//             style={{ position: "absolute", bottom: 16, left: 20, zIndex: 2 }}
-//           >
-//             <p
-//               style={{
-//                 fontSize: 10,
-//                 fontWeight: 700,
-//                 letterSpacing: "0.12em",
-//                 color: "rgba(255,255,255,0.6)",
-//                 textTransform: "uppercase",
-//                 margin: 0,
-//               }}
-//             >
-//               Collection
-//             </p>
-//             <h2
-//               style={{
-//                 fontSize: 22,
-//                 fontWeight: 800,
-//                 color: "#fff",
-//                 margin: "4px 0 0",
-//                 lineHeight: 1.2,
-//               }}
-//             >
-//               {collection.name}
-//             </h2>
-//             <p
-//               style={{
-//                 fontSize: 12,
-//                 color: "rgba(255,255,255,0.7)",
-//                 margin: "4px 0 0",
-//               }}
-//             >
-//               {collection.label}
-//             </p>
-//           </div>
-//         </div>
-
-//         <div style={{ padding: "20px 24px 32px", flex: 1 }}>
-//           <div
-//             style={{
-//               display: "flex",
-//               alignItems: "center",
-//               justifyContent: "space-between",
-//               marginBottom: 20,
-//             }}
-//           >
-//             <StatusBadge active={collection.isActive} />
-//             <div style={{ display: "flex", gap: 8 }}>
-//               {[
-//                 {
-//                   label: collection.isActive ? "Deactivate" : "Activate",
-//                   bg: "#FFF8E6",
-//                   color: "#a06800",
-//                   border: "#f0a50030",
-//                   fn: onToggle,
-//                 },
-//                 {
-//                   label: "Edit",
-//                   bg: "#EBF5FF",
-//                   color: "#1a6fbf",
-//                   border: "#3b9eff30",
-//                   fn: onEdit,
-//                 },
-//                 {
-//                   label: "Delete",
-//                   bg: "#FFF0F0",
-//                   color: "#c0392b",
-//                   border: "#e74c3c30",
-//                   fn: onDelete,
-//                 },
-//               ].map(({ label, bg, color, border, fn }) => (
-//                 <button
-//                   key={label}
-//                   onClick={fn}
-//                   style={{
-//                     padding: "6px 12px",
-//                     borderRadius: 7,
-//                     fontSize: 12,
-//                     fontWeight: 500,
-//                     background: bg,
-//                     color,
-//                     border: `1px solid ${border}`,
-//                     cursor: "pointer",
-//                   }}
-//                 >
-//                   {label}
-//                 </button>
-//               ))}
-//             </div>
-//           </div>
-
-//           <div
-//             style={{
-//               display: "grid",
-//               gridTemplateColumns: "repeat(4,1fr)",
-//               gap: 8,
-//               marginBottom: 20,
-//             }}
-//           >
-//             {[
-//               { label: "Products", value: collection.productCount ?? 0 },
-//               { label: "Sort", value: collection.sortOrder },
-//               { label: "Purity", value: collection.purity || "—" },
-//               { label: "Tag", value: collection.tag || "None" },
-//             ].map(({ label, value }) => (
-//               <div
-//                 key={label}
-//                 style={{
-//                   background: "#fff",
-//                   border: "1px solid #EEE9DD",
-//                   borderRadius: 10,
-//                   padding: "10px 12px",
-//                   textAlign: "center",
-//                 }}
-//               >
-//                 <p
-//                   style={{
-//                     fontSize: 18,
-//                     fontWeight: 800,
-//                     color: "#1a1a1a",
-//                     margin: 0,
-//                     lineHeight: 1,
-//                   }}
-//                 >
-//                   {value}
-//                 </p>
-//                 <p
-//                   style={{
-//                     fontSize: 10,
-//                     color: "#999",
-//                     margin: "4px 0 0",
-//                     textTransform: "uppercase",
-//                     letterSpacing: "0.06em",
-//                   }}
-//                 >
-//                   {label}
-//                 </p>
-//               </div>
-//             ))}
-//           </div>
-
-//           {[
-//             { label: "Slug", value: collection.slug },
-//             { label: "Tagline", value: collection.tagline || "—" },
-//             { label: "Description", value: collection.description || "—" },
-//             { label: "Accent Color", value: collection.accentColor || "—" },
-//             {
-//               label: "Breadcrumb",
-//               value: collection.breadcrumb?.join(" › ") || "—",
-//             },
-//             { label: "Created", value: fmtFull(collection.createdAt) },
-//             { label: "Updated", value: fmtFull(collection.updatedAt) },
-//           ].map(({ label, value }) => (
-//             <div key={label} style={{ marginBottom: 14 }}>
-//               <p
-//                 style={{
-//                   fontSize: 10,
-//                   fontWeight: 700,
-//                   textTransform: "uppercase",
-//                   letterSpacing: "0.07em",
-//                   color: "#8B7355",
-//                   margin: "0 0 3px",
-//                 }}
-//               >
-//                 {label}
-//               </p>
-//               <p
-//                 style={{
-//                   fontSize: 13,
-//                   color: "#333",
-//                   margin: 0,
-//                   lineHeight: 1.5,
-//                   wordBreak: "break-word",
-//                   display: "flex",
-//                   alignItems: "center",
-//                   gap: 8,
-//                 }}
-//               >
-//                 {label === "Accent Color" && value !== "—" && (
-//                   <span
-//                     style={{
-//                       width: 14,
-//                       height: 14,
-//                       borderRadius: "50%",
-//                       background: value,
-//                       border: "1px solid #E5E0D4",
-//                       display: "inline-block",
-//                       flexShrink: 0,
-//                     }}
-//                   />
-//                 )}
-//                 {label === "Slug" ? (
-//                   <code
-//                     style={{
-//                       fontFamily: "monospace",
-//                       fontSize: 12,
-//                       background: "#F5F2EA",
-//                       padding: "1px 6px",
-//                       borderRadius: 4,
-//                     }}
-//                   >
-//                     {value}
-//                   </code>
-//                 ) : (
-//                   value
-//                 )}
-//               </p>
-//             </div>
-//           ))}
-
-//           {(collection.seoTitle || collection.seoDescription) && (
-//             <div
-//               style={{
-//                 marginTop: 16,
-//                 padding: "14px 16px",
-//                 background: "#fff",
-//                 border: "1px solid #EEE9DD",
-//                 borderRadius: 10,
-//               }}
-//             >
-//               <p
-//                 style={{
-//                   fontSize: 10,
-//                   fontWeight: 700,
-//                   textTransform: "uppercase",
-//                   letterSpacing: "0.07em",
-//                   color: "#8B7355",
-//                   margin: "0 0 8px",
-//                 }}
-//               >
-//                 SEO
-//               </p>
-//               {collection.seoTitle && (
-//                 <p
-//                   style={{
-//                     fontSize: 13,
-//                     fontWeight: 600,
-//                     color: "#333",
-//                     margin: "0 0 4px",
-//                   }}
-//                 >
-//                   {collection.seoTitle}
-//                 </p>
-//               )}
-//               {collection.seoDescription && (
-//                 <p
-//                   style={{
-//                     fontSize: 12,
-//                     color: "#777",
-//                     margin: 0,
-//                     lineHeight: 1.5,
-//                   }}
-//                 >
-//                   {collection.seoDescription}
-//                 </p>
-//               )}
-//             </div>
-//           )}
-
-//           {collection.products && collection.products.length > 0 && (
-//             <div style={{ marginTop: 16 }}>
-//               <p
-//                 style={{
-//                   fontSize: 10,
-//                   fontWeight: 700,
-//                   textTransform: "uppercase",
-//                   letterSpacing: "0.07em",
-//                   color: "#8B7355",
-//                   margin: "0 0 10px",
-//                 }}
-//               >
-//                 Products ({collection.products.length})
-//               </p>
-//               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-//                 {collection.products.slice(0, 8).map((p) => (
-//                   <div
-//                     key={p._id}
-//                     style={{
-//                       display: "flex",
-//                       alignItems: "center",
-//                       gap: 10,
-//                       padding: "8px 12px",
-//                       background: "#fff",
-//                       border: "1px solid #EEE9DD",
-//                       borderRadius: 8,
-//                     }}
-//                   >
-//                     {p.images?.[0]?.src && (
-//                       // eslint-disable-next-line @next/next/no-img-element
-//                       <img
-//                         src={p.images[0].src}
-//                         alt={p.name}
-//                         style={{
-//                           width: 32,
-//                           height: 32,
-//                           borderRadius: 6,
-//                           objectFit: "cover",
-//                           flexShrink: 0,
-//                         }}
-//                       />
-//                     )}
-//                     <div style={{ flex: 1, minWidth: 0 }}>
-//                       <p
-//                         style={{
-//                           fontSize: 12,
-//                           fontWeight: 600,
-//                           color: "#1a1a1a",
-//                           margin: 0,
-//                           overflow: "hidden",
-//                           textOverflow: "ellipsis",
-//                           whiteSpace: "nowrap",
-//                         }}
-//                       >
-//                         {p.name}
-//                       </p>
-//                       <p style={{ fontSize: 11, color: "#999", margin: 0 }}>
-//                         {inr(p.price)}
-//                       </p>
-//                     </div>
-//                     <div
-//                       style={{
-//                         display: "flex",
-//                         gap: 6,
-//                         alignItems: "center",
-//                         flexShrink: 0,
-//                       }}
-//                     >
-//                       <StatusBadge active={p.isActive} />
-//                       <button
-//                         onClick={() => onViewProduct(p)}
-//                         title="View product detail"
-//                         style={{
-//                           width: 26,
-//                           height: 26,
-//                           borderRadius: 6,
-//                           border: "1px solid #BDD9FF",
-//                           background: "#F0F7FF",
-//                           color: "#1a6fbf",
-//                           fontSize: 12,
-//                           cursor: "pointer",
-//                           display: "flex",
-//                           alignItems: "center",
-//                           justifyContent: "center",
-//                         }}
-//                       >
-//                         &#128065;
-//                       </button>
-//                     </div>
-//                   </div>
-//                 ))}
-//                 {collection.products.length > 8 && (
-//                   <p
-//                     style={{
-//                       fontSize: 12,
-//                       color: "#aaa",
-//                       textAlign: "center",
-//                       margin: "4px 0 0",
-//                     }}
-//                   >
-//                     +{collection.products.length - 8} more
-//                   </p>
-//                 )}
-//               </div>
-//             </div>
-//           )}
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
 function CollectionPopup({
   collection,
   onClose,
@@ -1707,7 +1253,7 @@ function CollectionPopup({
 
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/20 backdrop-blur text-white"
+            className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/20 backdrop-blur text-white cursor-pointer"
           >
             ✕
           </button>
@@ -1809,7 +1355,7 @@ function CollectionPopup({
           </div>
 
           {/* BREADCRUMB */}
-          <div>
+          {/* <div>
             <p className="text-xs text-gray-400 mb-1">Breadcrumb</p>
             <div className="flex flex-wrap gap-2">
               {breadcrumb.length ? (
@@ -1825,7 +1371,7 @@ function CollectionPopup({
                 <span className="text-gray-400">—</span>
               )}
             </div>
-          </div>
+          </div> */}
 
           {/* SEO */}
           {(collection.seoTitle || collection.seoDescription) && (
@@ -1859,15 +1405,94 @@ function CollectionPopup({
                 Products ({collection.products.length})
               </p>
 
-              <div className="flex flex-wrap gap-2">
-                {collection.products.map((product) => (
-                  <span
-                    key={product._id}
-                    className="text-xs bg-gray-100 px-2 py-1 rounded"
-                  >
-                    {product._id.slice(-6)}
+              <div className="rounded-xl border border-gray-200 overflow-hidden">
+                {/* Header */}
+                <div className="grid grid-cols-[32px_1fr_auto] gap-3 items-center bg-gray-50 border-b border-gray-200 px-3 py-2">
+                  <span /> {/* thumbnail col — no label */}
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                    Name / ID
                   </span>
-                ))}
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                    Status
+                  </span>
+                </div>
+
+                {/* Rows */}
+                {collection.products?.map((product, i) => {
+                  const isPopulated =
+                    typeof product === "object" && product !== null;
+                  const key = isPopulated ? product._id : String(product);
+                  const fullId = isPopulated ? product._id : String(product);
+
+                  return (
+                    <div
+                      key={key ?? i}
+                      className={`grid grid-cols-[32px_1fr_auto] gap-3 items-center px-3 py-2.5
+              ${
+                i < (collection.products?.length ?? 0) - 1
+                  ? "border-b border-gray-100"
+                  : ""
+              }
+              ${i % 2 === 0 ? "bg-white" : "bg-gray-50/40"}`}
+                    >
+                      {/* Thumbnail */}
+                      <div className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center flex-shrink-0">
+                        {isPopulated && product.images?.[0]?.src ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={product.images[0].src}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-gray-300 text-[11px]">🖼</span>
+                        )}
+                      </div>
+
+                      {/* Name + ID */}
+                      <div className="min-w-0">
+                        {isPopulated ? (
+                          <>
+                            <p className="text-sm font-medium text-gray-800 truncate leading-tight">
+                              {product.name}
+                            </p>
+                            <p className="text-[10px] font-mono text-gray-400 mt-0.5 truncate">
+                              {fullId}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-xs font-mono text-gray-500 truncate">
+                            {fullId}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Status badge */}
+                      <div className="flex-shrink-0">
+                        {isPopulated ? (
+                          <span
+                            className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                              product.isActive
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                : "bg-gray-100 text-gray-500 border-gray-200"
+                            }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                product.isActive
+                                  ? "bg-emerald-500"
+                                  : "bg-gray-400"
+                              }`}
+                            />
+                            {product.isActive ? "Active" : "Inactive"}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-gray-300">—</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1913,8 +1538,9 @@ function CollectionFormModal({
         }
       : {}),
   });
+  // ✅ FIXED
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>(
-    initial?.products?.map((p) => p._id) ?? [],
+    initial?.products?.map((p) => (typeof p === "string" ? p : p._id)) ?? [],
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -1976,15 +1602,15 @@ function CollectionFormModal({
         ] as const
       ).forEach((k) => fd.append(k, String(form[k])));
       fd.append("isActive", String(form.isActive));
-      fd.append(
-        "breadcrumb",
-        JSON.stringify(
-          form.breadcrumb
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean),
-        ),
-      );
+      // fd.append(
+      //   "breadcrumb",
+      //   JSON.stringify(
+      //     form.breadcrumb
+      //       .split(",")
+      //       .map((s) => s.trim())
+      //       .filter(Boolean),
+      //   ),
+      // );
       fd.append(
         "seoKeywords",
         JSON.stringify(
@@ -2360,7 +1986,7 @@ function CollectionFormModal({
                   ))}
                 </select>
               </div>
-              <div>
+              {/* <div>
                 <label className={lbl}>Purity</label>
                 <select
                   className={inp}
@@ -2372,8 +1998,8 @@ function CollectionFormModal({
                     <option key={p}>{p}</option>
                   ))}
                 </select>
-              </div>
-              <div>
+              </div> */}
+              {/* <div>
                 <label className={lbl}>
                   Breadcrumb{" "}
                   <span
@@ -2393,7 +2019,7 @@ function CollectionFormModal({
                   onChange={(e) => set("breadcrumb", e.target.value)}
                   placeholder="Home, Collections, Bridal"
                 />
-              </div>
+              </div> */}
             </div>
           )}
 

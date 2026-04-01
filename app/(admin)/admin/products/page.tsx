@@ -54,6 +54,7 @@ export default function AdminProductsPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [tag, setTag] = useState("");
+  const [filterCollection, setFilterCollection] = useState("");
   const [sort, setSort] = useState("-createdAt");
   const [page, setPage] = useState(1);
 
@@ -99,6 +100,7 @@ export default function AdminProductsPage() {
       if (search) params.set("search", search);
       if (status) params.set("isActive", status);
       if (tag) params.set("tag", tag);
+      if (filterCollection) params.set("collection", filterCollection);
       params.set("sort", sort);
       params.set("page", String(page));
       params.set("limit", "15");
@@ -117,7 +119,7 @@ export default function AdminProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, status, tag, sort, page]);
+  }, [filterCollection, search, status, tag, sort, page]);
 
   useEffect(() => {
     fetchProducts();
@@ -314,13 +316,6 @@ export default function AdminProductsPage() {
         onClose={() => setCollectionTarget(null)}
       />
       <ProductViewDrawer
-        // product={viewProduct}
-        // open={drawerOpen}
-        // onClose={() => setDrawerOpen(false)}
-        // onEdit={(id) => {
-        //   setDrawerOpen(false);
-        //   router.push(`/admin/products/${id}`);
-        // }}
         product={viewProduct}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
@@ -370,6 +365,7 @@ export default function AdminProductsPage() {
           status={status}
           tag={tag}
           sort={sort}
+          collection={filterCollection}
           onSearch={(v) => {
             setSearch(v);
             setPage(1);
@@ -382,11 +378,16 @@ export default function AdminProductsPage() {
             setTag(v);
             setPage(1);
           }}
+          onCollection={(v) => {
+            setFilterCollection(v);
+            setPage(1);
+          }}
           onSort={setSort}
           onClear={() => {
             setSearch("");
             setStatus("");
             setTag("");
+            setFilterCollection("");
             setSort("-createdAt");
             setPage(1);
           }}
