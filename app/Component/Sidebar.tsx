@@ -46,9 +46,13 @@ const NAV_ITEMS = [
     id: "orders",
     label: "Order Management",
     icon: "◈",
-    badge: 12,
+    // badge: 12,
     children: [
-      { id: "all-orders", label: "All Orders", href: "/admin/orders" },
+      {
+        id: "all-orders",
+        label: "All Orders",
+        href: "/admin/order-management",
+      },
       { id: "pending-orders", label: "Pending", href: "/admin/orders/pending" },
       {
         id: "completed-orders",
@@ -128,7 +132,7 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
   return (
     <aside
       style={{
-        width: collapsed ? 68 : 300,
+        width: collapsed ? 68 : 250,
         height: "100vh",
         background: "var(--gradient-emerald)",
         display: "flex",
@@ -176,9 +180,9 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
 
                 {!collapsed && <span>{item.label}</span>}
 
-                {item.badge && !collapsed && (
+                {/* {item.badge && !collapsed && (
                   <span style={{ marginLeft: "auto" }}>{item.badge}</span>
-                )}
+                )} */}
 
                 {item.children && !collapsed && (
                   <span style={{ marginLeft: "auto" }}>
