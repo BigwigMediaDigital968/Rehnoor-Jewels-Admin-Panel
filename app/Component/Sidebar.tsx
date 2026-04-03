@@ -31,7 +31,7 @@ const NAV_ITEMS = [
   {
     id: "collections",
     label: "Collections",
-    icon: "◇",
+    icon: "◻",
     children: [
       {
         id: "collections",
@@ -62,6 +62,12 @@ const NAV_ITEMS = [
     ],
   },
 
+  {
+    id: "news",
+    label: "Newsletter",
+    icon: "✉",
+    href: "/admin/newsletter-management",
+  },
   {
     id: "customers",
     label: "Customers",
@@ -105,7 +111,7 @@ const NAV_ITEMS = [
     label: "Blog Management",
     icon: "✎",
     children: [
-      { id: "all-blogs", label: "All Blogs", href: "/admin/blogs" },
+      { id: "all-blogs", label: "All Blogs", href: "/admin/blog-management" },
       { id: "add-blog", label: "Add Blog", href: "/admin/blogs/add" },
     ],
   },
