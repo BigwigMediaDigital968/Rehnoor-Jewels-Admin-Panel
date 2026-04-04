@@ -677,6 +677,8 @@ export default function BlogManagement({
     fetchStats();
   }, [fetchBlogs, fetchStats]);
 
+  console.log(blogs);
+
   // ── Actions ───────────────────────────────────────────────────────────────
   const togglePublish = async (blog: BlogSummary) => {
     setTogglingId(blog._id);

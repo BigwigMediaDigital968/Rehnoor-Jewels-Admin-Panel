@@ -14,6 +14,7 @@ import { Table } from "@tiptap/extension-table";
 import TableRow from "@tiptap/extension-table-row";
 import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
+import { useRouter } from "next/navigation";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -556,10 +557,12 @@ function RichEditor({
   content,
   onChange,
   onImageUpload,
+  setInsertImageFn,
 }: {
   content: string;
   onChange: (html: string) => void;
   onImageUpload: () => void;
+  setInsertImageFn?: (fn: (src: string, alt: string) => void) => void;
 }) {
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [currentLinkHref, setCurrentLinkHref] = useState("");
@@ -577,11 +580,6 @@ function RichEditor({
         orderedList: { keepMarks: true },
       }),
       Image.configure({ allowBase64: false, inline: false }),
-      //   Link.configure({
-      //     openOnClick: false,
-      //     autolink: true,
-      //     defaultProtocol: "https",
-      //   }),
       Placeholder.configure({
         placeholder: "Start writing your blog post here… Tell your story.",
       }),
@@ -641,6 +639,14 @@ function RichEditor({
     }
     setShowLinkDialog(false);
   };
+
+  useEffect(() => {
+    if (!editor || !setInsertImageFn) return;
+
+    setInsertImageFn((src: string, alt: string) => {
+      editor.chain().focus().setImage({ src, alt }).run();
+    });
+  }, [editor, setInsertImageFn]);
 
   if (!mounted || !editor) {
     return (
@@ -1193,6 +1199,8 @@ export default function BlogEditor({
     "idle",
   );
 
+  const router = useRouter();
+
   // Image insertion reference (set by RichEditor after insert)
   const insertImageRef = useRef<((src: string, alt: string) => void) | null>(
     null,
@@ -1271,6 +1279,14 @@ export default function BlogEditor({
     setClearCover(true);
   };
 
+  useEffect(() => {
+    return () => {
+      if (coverPreview?.startsWith("blob:")) {
+        URL.revokeObjectURL(coverPreview);
+      }
+    };
+  }, [coverPreview]);
+
   // Save (both create and update)
   const handleSave = async (overrideStatus?: BlogFormData["status"]) => {
     if (!form.title.trim() || !htmlContent.trim()) {
@@ -1320,7 +1336,7 @@ export default function BlogEditor({
       fd.delete("authorBio");
       fd.delete("authorEmail");
       fd.delete("authorName");
-      fd.append(
+      fd.set(
         "author",
         JSON.stringify({
           name: form.authorName,
@@ -1375,6 +1391,8 @@ export default function BlogEditor({
       onSaved(
         isEdit ? "Blog updated successfully." : "Blog created successfully.",
       );
+      router.push("/admin/blog-management");
+      router.refresh();
     } catch (err: unknown) {
       onError(err instanceof Error ? err.message : "Something went wrong");
       setSavedState("idle");
@@ -1383,9 +1401,11 @@ export default function BlogEditor({
     }
   };
 
+  const [editorMode, setEditorMode] = useState<"visual" | "html">("visual");
+
   const handleImageInsert = (src: string, alt: string) => {
     if (insertImageRef.current) {
-      insertImageRef.current(src, alt);
+      insertImageRef.current?.(src, alt);
     }
   };
 
@@ -1419,8 +1439,8 @@ export default function BlogEditor({
   const TABS = [
     { id: "content", label: "✏️ Content" },
     { id: "seo", label: "🔍 SEO" },
-    { id: "settings", label: "⚙️ Settings" },
     { id: "faqs", label: `❓ FAQs${faqs.length ? ` (${faqs.length})` : ""}` },
+    { id: "settings", label: "⚙️ Settings" },
   ];
 
   return (
@@ -1433,9 +1453,7 @@ export default function BlogEditor({
       {showImageDialog && (
         <ImageDialog
           onInsert={(src, alt) => {
-            // We pass the insert function via the editor's commands
-            handleImageInsert(src, alt);
-            setShowImageDialog(false);
+            insertImageRef.current?.(src, alt); // 🔥 THIS WAS MISSING
           }}
           onClose={() => setShowImageDialog(false)}
         />
@@ -1607,13 +1625,73 @@ export default function BlogEditor({
             <div style={{ height: 1, background: "#EEE9DD", marginTop: 16 }} />
           </div>
 
-          {/* Rich editor */}
+          {/* Editor mode toggle */}
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              padding: "10px 32px",
+              borderBottom: "1px solid #EEE9DD",
+              background: "#fff",
+            }}
+          >
+            <button
+              onClick={() => setEditorMode("visual")}
+              style={{
+                padding: "6px 12px",
+                borderRadius: 6,
+                border: "1px solid #E5E0D4",
+                background: editorMode === "visual" ? "#003720" : "#fff",
+                color: editorMode === "visual" ? "#FCC131" : "#555",
+                fontSize: 12,
+                cursor: "pointer",
+              }}
+            >
+              Visual
+            </button>
+
+            <button
+              onClick={() => setEditorMode("html")}
+              style={{
+                padding: "6px 12px",
+                borderRadius: 6,
+                border: "1px solid #E5E0D4",
+                background: editorMode === "html" ? "#003720" : "#fff",
+                color: editorMode === "html" ? "#FCC131" : "#555",
+                fontSize: 12,
+                cursor: "pointer",
+              }}
+            >
+              HTML
+            </button>
+          </div>
+
+          {/* Editor */}
           <div style={{ flex: 1, overflowY: "auto", background: "#fff" }}>
-            <RichEditor
-              content={htmlContent}
-              onChange={setHtmlContent}
-              onImageUpload={() => setShowImageDialog(true)}
-            />
+            {editorMode === "visual" ? (
+              <RichEditor
+                content={htmlContent}
+                onChange={setHtmlContent}
+                onImageUpload={() => setShowImageDialog(true)}
+                setInsertImageFn={(fn) => (insertImageRef.current = fn)}
+              />
+            ) : (
+              <textarea
+                value={htmlContent}
+                onChange={(e) => setHtmlContent(e.target.value)}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  border: "none",
+                  outline: "none",
+                  padding: 20,
+                  fontFamily: "monospace",
+                  fontSize: 13,
+                  lineHeight: 1.6,
+                  background: "#fff",
+                }}
+              />
+            )}
           </div>
         </div>
 

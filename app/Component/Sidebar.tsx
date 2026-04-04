@@ -47,19 +47,20 @@ const NAV_ITEMS = [
     label: "Order Management",
     icon: "◈",
     // badge: 12,
-    children: [
-      {
-        id: "all-orders",
-        label: "All Orders",
-        href: "/admin/order-management",
-      },
-      { id: "pending-orders", label: "Pending", href: "/admin/orders/pending" },
-      {
-        id: "completed-orders",
-        label: "Completed",
-        href: "/admin/orders/completed",
-      },
-    ],
+    href: "/admin/order-management",
+    // children: [
+    //   {
+    //     id: "all-orders",
+    //     label: "All Orders",
+    //     href: "/admin/order-management",
+    //   },
+    //   { id: "pending-orders", label: "Pending", href: "/admin/orders/pending" },
+    //   {
+    //     id: "completed-orders",
+    //     label: "Completed",
+    //     href: "/admin/orders/completed",
+    //   },
+    // ],
   },
 
   {
@@ -68,12 +69,12 @@ const NAV_ITEMS = [
     icon: "✉",
     href: "/admin/newsletter-management",
   },
-  {
-    id: "customers",
-    label: "Customers",
-    icon: "◉",
-    href: "/admin/customers",
-  },
+  // {
+  //   id: "customers",
+  //   label: "Customers",
+  //   icon: "◉",
+  //   href: "/admin/customers",
+  // },
 
   {
     id: "leads",
@@ -89,31 +90,28 @@ const NAV_ITEMS = [
     href: "/admin/reviews-management",
   },
 
-  {
-    id: "analytics",
-    label: "Analytics",
-    icon: "◬",
-    href: "/admin/analytics",
-  },
+  // {
+  //   id: "analytics",
+  //   label: "Analytics",
+  //   icon: "◬",
+  //   href: "/admin/analytics",
+  // },
 
-  {
-    id: "marketing",
-    label: "Marketing",
-    icon: "✦",
-    children: [
-      { id: "banners", label: "Promotional Banners", href: "/admin/banners" },
-      { id: "offers", label: "Offers & Discounts", href: "/admin/offers" },
-    ],
-  },
+  // {
+  //   id: "marketing",
+  //   label: "Marketing",
+  //   icon: "✦",
+  //   children: [
+  //     { id: "banners", label: "Promotional Banners", href: "/admin/banners" },
+  //     { id: "offers", label: "Offers & Discounts", href: "/admin/offers" },
+  //   ],
+  // },
 
   {
     id: "blog",
     label: "Blog Management",
     icon: "✎",
-    children: [
-      { id: "all-blogs", label: "All Blogs", href: "/admin/blog-management" },
-      { id: "add-blog", label: "Add Blog", href: "/admin/blogs/add" },
-    ],
+    href: "/admin/blog-management",
   },
 ];
 
