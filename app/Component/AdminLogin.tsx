@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import toast from "react-hot-toast";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -49,9 +50,13 @@ export default function AdminLogin() {
       localStorage.setItem("admin_token", data.data.token);
       document.cookie = `admin_token=${data.data.token}; path=/`;
 
-      router.push("/admin/dashboard");
+      toast.success("Login successful!");
+      setTimeout(() => {
+        router.push("/admin/dashboard");
+      }, 1200);
     } catch {
       setErrors({ form: "Server unreachable. Is the backend running?" });
+      toast.error("Server unreachable. Is the backend running?");
     } finally {
       setLoading(false);
     }
