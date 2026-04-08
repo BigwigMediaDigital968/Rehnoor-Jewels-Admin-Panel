@@ -38,7 +38,11 @@ const NAV_ITEMS = [
         label: "Collection List",
         href: "/admin/collections",
       },
-      { id: "categories", label: "Categories", href: "/admin/categories" },
+      // {
+      //   id: "categories",
+      //   label: "Category Management",
+      //   href: "/admin/category-management",
+      // },
     ],
   },
 
