@@ -56,7 +56,8 @@ interface ApiStats {
 interface Order {
   _id: string;
   orderNumber?: string;
-  user?: { name?: string; email?: string };
+  customerName?: string;
+  customerEmail?: string;
   guestEmail?: string;
 
   items: {
@@ -64,22 +65,22 @@ interface Order {
     productId?: { name?: string };
   }[];
 
-  // ❌ remove this if not used
-  // totalAmount: number;
-
-  pricing?: {
+  pricing: {
     subtotal: number;
     shippingCharge: number;
     discountAmount: number;
     taxAmount: number;
     taxRate?: number;
+    total: number;
   };
-
-  totalAmount?: number;
 
   status: string;
   createdAt: string;
   paymentStatus?: string;
+  payment?: {
+    method?: string;
+    status?: string;
+  };
 }
 
 interface Product {
@@ -1056,7 +1057,7 @@ export default function DashboardPageAPI() {
       );
     }
 
-    return o.totalAmount ?? 0; // fallback
+    return o.pricing.total ?? 0; // fallback
   };
 
   // ── Fetch helpers ─────────────────────────────────────────────
@@ -1332,7 +1333,7 @@ export default function DashboardPageAPI() {
               ↻ Refresh
             </button>
             <button
-              onClick={() => router.push("/admin/products/new")}
+              onClick={() => router.push("/admin/products/add")}
               style={{
                 padding: "9px 18px",
                 borderRadius: 9,
@@ -1673,10 +1674,11 @@ export default function DashboardPageAPI() {
                         }}
                       >
                         <Avatar
-                          text={(o.user?.name ?? o.guestEmail ?? "G").slice(
-                            0,
-                            2,
-                          )}
+                          text={(
+                            o.customerName ??
+                            o.customerEmail ??
+                            "G"
+                          ).slice(0, 2)}
                         />
                         <span
                           style={{
@@ -1686,7 +1688,7 @@ export default function DashboardPageAPI() {
                             maxWidth: 120,
                           }}
                         >
-                          {o.user?.name ?? o.guestEmail ?? "Guest"}
+                          {o.customerName ?? "Guest"}
                         </span>
                       </div>
                     </TD>
@@ -1714,7 +1716,7 @@ export default function DashboardPageAPI() {
                         fontWeight: 600,
                       }}
                     >
-                      {fmtCurrency(o.totalAmount)}
+                      {fmtCurrency(o.pricing.total)}
                     </TD>
                     <TD>
                       <Badge status={o.status} />
@@ -1821,7 +1823,7 @@ export default function DashboardPageAPI() {
                 {orders.map((o, i) => (
                   <TR
                     key={o._id || i}
-                    onClick={() => router.push(`/admin/orders/${o._id}`)}
+                    onClick={() => router.push("/admin/order-management")}
                   >
                     <TD style={{ color: "#fcc151", whiteSpace: "nowrap" }}>
                       {o.orderNumber ?? `#${o._id.slice(-6).toUpperCase()}`}
@@ -1835,10 +1837,11 @@ export default function DashboardPageAPI() {
                         }}
                       >
                         <Avatar
-                          text={(o.user?.name ?? o.guestEmail ?? "G").slice(
-                            0,
-                            2,
-                          )}
+                          text={(
+                            o.customerEmail ??
+                            o.customerName ??
+                            "G"
+                          ).slice(0, 2)}
                         />
                         <span
                           style={{
@@ -1848,7 +1851,7 @@ export default function DashboardPageAPI() {
                             maxWidth: 110,
                           }}
                         >
-                          {o.user?.name ?? "Guest"}
+                          {o.customerName ?? "Guest"}
                         </span>
                       </div>
                     </TD>
@@ -1863,7 +1866,7 @@ export default function DashboardPageAPI() {
                           whiteSpace: "nowrap",
                         }}
                       >
-                        {o.user?.email ?? o.guestEmail ?? "—"}
+                        {o.customerEmail ?? "—"}
                       </span>
                     </TD>
                     <TD
@@ -1874,23 +1877,40 @@ export default function DashboardPageAPI() {
                         fontWeight: 600,
                       }}
                     >
-                      {fmtCurrency(o.totalAmount)}
+                      {fmtCurrency(o.pricing.total)}
                     </TD>
                     <TD>
                       <Badge status={o.status} />
                     </TD>
                     <TD>
-                      <span
-                        style={{
-                          fontSize: 10,
-                          color:
-                            o.paymentStatus === "paid" ? "#81c784" : "#ef9a9a",
-                          textTransform: "capitalize",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {o.paymentStatus ?? "—"}
-                      </span>
+                      <div style={{ display: "flex", flexDirection: "column" }}>
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            textTransform: "uppercase",
+                            color: "#fcc151",
+                          }}
+                        >
+                          {o.payment?.method ?? "—"}
+                        </span>
+
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 600,
+                            textTransform: "capitalize",
+                            color:
+                              o.payment?.status === "paid"
+                                ? "#81c784"
+                                : o.payment?.status === "failed"
+                                ? "#ef5350"
+                                : "#fbc02d", // pending
+                          }}
+                        >
+                          {o.payment?.status ?? "—"}
+                        </span>
+                      </div>
                     </TD>
                     <TD
                       style={{
@@ -2478,13 +2498,13 @@ export default function DashboardPageAPI() {
               label: "Add Product",
               icon: "◇",
               color: "#fcc151",
-              path: "/admin/products/new",
+              path: "/admin/products/add",
             },
             {
               label: "New Collection",
               icon: "⬟",
               color: "#4caf50",
-              path: "/admin/collections/new",
+              path: "/admin/collections",
             },
             {
               label: "View Orders",
@@ -2508,7 +2528,7 @@ export default function DashboardPageAPI() {
               label: "Store Settings",
               icon: "◎",
               color: "#ab47bc",
-              path: "/admin/settings",
+              path: "#",
             },
           ].map((a) => (
             <QuickActionItem
