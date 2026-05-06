@@ -3,7 +3,7 @@ import "./globals.css";
 import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
-  title: "Rehnoor Jewels — Admin",
+  title: "Rehnoor Jewels | Admin Panel",
   description: "Rehnoor Jewellery Admin Panel",
 };
 

@@ -73,12 +73,12 @@ const NAV_ITEMS = [
     icon: "✉",
     href: "/admin/newsletter-management",
   },
-  // {
-  //   id: "customers",
-  //   label: "Customers",
-  //   icon: "◉",
-  //   href: "/admin/customers",
-  // },
+  {
+    id: "customers",
+    label: "Customers",
+    icon: "◉",
+    href: "/admin/customers",
+  },
 
   {
     id: "leads",
@@ -94,12 +94,12 @@ const NAV_ITEMS = [
     href: "/admin/reviews-management",
   },
 
-  // {
-  //   id: "analytics",
-  //   label: "Analytics",
-  //   icon: "◬",
-  //   href: "/admin/analytics",
-  // },
+  {
+    id: "discount",
+    label: "Discount & Coupon",
+    icon: "◬",
+    href: "/admin/discount-coupon-management",
+  },
 
   // {
   //   id: "marketing",

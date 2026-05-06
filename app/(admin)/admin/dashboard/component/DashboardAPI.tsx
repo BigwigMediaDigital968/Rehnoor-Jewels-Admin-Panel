@@ -1659,7 +1659,7 @@ export default function DashboardPageAPI() {
                 {orders.slice(0, 10).map((o, i) => (
                   <TR
                     key={o._id || i}
-                    onClick={() => router.push(`/admin/orders/${o._id}`)}
+                    onClick={() => router.push("/admin/order-management")}
                   >
                     <TD style={{ color: "#fcc151" }}>
                       {o.orderNumber ?? `#${o._id.slice(-6).toUpperCase()}`}
@@ -2182,7 +2182,7 @@ export default function DashboardPageAPI() {
           <SectionCard
             title="All Collections"
             subtitle={`${collections.length} collections`}
-            onAction={() => router.push("/admin/collections/new")}
+            onAction={() => router.push("/admin/collections")}
             actionLabel="+ New Collection"
           >
             {loadingMap.collections ? (
@@ -2544,7 +2544,7 @@ function CollectionItem({ c, router }: { c: Collection; router: any }) {
       }}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
-      onClick={() => router.push(`/admin/collections/${c._id}`)}
+      onClick={() => router.push("/admin/collections")}
     >
       {c.heroImage ? (
         <img
