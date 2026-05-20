@@ -48,6 +48,7 @@ export default function AdminProductsPage() {
     page: 1,
     limit: 15,
     totalPages: 1,
+    activeProducts: 0
   });
 
   // Filters
@@ -110,6 +111,7 @@ export default function AdminProductsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
+      // console.log("prd list data", data)
       setProducts(data.data || []);
       setPagination(
         data.pagination || { total: 0, page: 1, limit: 15, totalPages: 1 },
@@ -131,7 +133,7 @@ export default function AdminProductsPage() {
   const stats = useMemo(
     () => ({
       total: pagination.total,
-      active: products.filter((p) => p.isActive).length,
+      active: pagination?.activeProducts,
       inactive: products.filter((p) => !p.isActive).length,
       featured: products.filter((p) => p.isFeatured).length,
     }),
