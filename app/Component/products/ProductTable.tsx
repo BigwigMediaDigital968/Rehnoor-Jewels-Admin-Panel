@@ -20,7 +20,7 @@ export interface Product {
   rating?: number;
   reviewCount?: number;
   stock?: number;
-  weightGrams?: string;
+  weightGrams?: number;
   bisHallmark?: boolean;
   shortDescription?: string;
   ourPromise?: string;

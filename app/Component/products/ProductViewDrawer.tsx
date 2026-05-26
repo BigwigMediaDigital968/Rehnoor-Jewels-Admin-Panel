@@ -1,7 +1,600 @@
+// "use client";
+
+// import { useState, useEffect } from "react";
+// import Image from "next/image";
+
+// interface ProductImage {
+//   src: string;
+//   alt: string;
+// }
+// interface Specification {
+//   key: string;
+//   value: string;
+//   icon?: string;
+// }
+// interface Size {
+//   label: string;
+//   available: boolean;
+// }
+// interface Collection {
+//   _id: string;
+//   name: string;
+//   slug: string;
+// }
+// interface Product {
+//   _id: string;
+//   id?: string;
+//   name: string;
+//   slug: string;
+//   subtitle?: string;
+//   sku?: string;
+//   collection?: Collection | null;
+//   category?: string;
+//   price: number;
+//   originalPrice?: number;
+//   priceFormatted?: string;
+//   originalPriceFormatted?: string;
+//   discountPct?: number;
+//   currency?: string;
+//   tag?: string;
+//   purity?: string;
+//   metal?: string;
+//   bisHallmark?: boolean;
+//   countryOfOrigin?: string;
+//   shortDescription?: string;
+//   longDescription?: string;
+//   ourPromise?: string;
+//   weightGrams?: string;
+//   images: ProductImage[];
+//   offerBannerImage?: string;
+//   sizeChartImage?: string;
+//   sizes?: Size[];
+//   specifications?: Specification[];
+//   seoTitle?: string;
+//   seoDescription?: string;
+//   seoKeywords?: string[];
+//   isActive: boolean;
+//   isFeatured: boolean;
+//   stock?: number | null;
+//   sortOrder?: number;
+//   createdAt?: string;
+//   updatedAt?: string;
+// }
+
+// interface ProductViewDrawerProps {
+//   product: Product | null;
+//   open: boolean;
+//   onClose: () => void;
+//   onEdit: (id: string) => void;
+// }
+
+// function formatDate(iso?: string) {
+//   if (!iso) return "—";
+//   return new Date(iso).toLocaleString("en-IN", {
+//     day: "2-digit",
+//     month: "short",
+//     year: "numeric",
+//     hour: "2-digit",
+//     minute: "2-digit",
+//   });
+// }
+
+// function Badge({
+//   label,
+//   color = "gray",
+// }: {
+//   label: string;
+//   color?: "amber" | "emerald" | "red" | "blue" | "gray" | "violet";
+// }) {
+//   const map = {
+//     amber: "bg-amber-100 text-amber-700 border-amber-200",
+//     emerald: "bg-emerald-100 text-emerald-700 border-emerald-200",
+//     red: "bg-red-100 text-red-600 border-red-200",
+//     blue: "bg-blue-100 text-blue-700 border-blue-200",
+//     gray: "bg-gray-100 text-gray-600 border-gray-200",
+//     violet: "bg-violet-100 text-violet-700 border-violet-200",
+//   };
+//   return (
+//     <span
+//       className={`inline-flex items-center text-[11px] font-semibold uppercase tracking-wide px-2.5 py-0.5 rounded-full border ${map[color]}`}
+//     >
+//       {label}
+//     </span>
+//   );
+// }
+
+// function InfoRow({ label, value }: { label: string; value?: React.ReactNode }) {
+//   return (
+//     <div className="flex flex-col gap-0.5">
+//       <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">
+//         {label}
+//       </span>
+//       <span className="text-sm font-medium text-gray-800">
+//         {value ?? <span className="text-gray-300 font-normal">—</span>}
+//       </span>
+//     </div>
+//   );
+// }
+
+// function SectionBlock({
+//   title,
+//   icon,
+//   children,
+// }: {
+//   title: string;
+//   icon?: string;
+//   children: React.ReactNode;
+// }) {
+//   return (
+//     <div>
+//       <div className="flex items-center gap-1.5 mb-3">
+//         {icon && <span className="text-sm">{icon}</span>}
+//         <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+//           {title}
+//         </h4>
+//       </div>
+//       {children}
+//     </div>
+//   );
+// }
+
+// // ── Main Drawer ───────────────────────────────────────────────────────────────
+
+// export default function ProductViewDrawer({
+//   product,
+//   open,
+//   onClose,
+//   onEdit,
+// }: ProductViewDrawerProps) {
+//   const [activeImage, setActiveImage] = useState(0);
+
+//   // Reset image index when product changes
+//   useEffect(() => {
+//     setActiveImage(0);
+//   }, [product?._id]);
+
+//   // Lock body scroll when open
+//   useEffect(() => {
+//     if (open) {
+//       document.body.style.overflow = "hidden";
+//     } else {
+//       document.body.style.overflow = "";
+//     }
+//     return () => {
+//       document.body.style.overflow = "";
+//     };
+//   }, [open]);
+
+//   const discount =
+//     product?.discountPct ??
+//     (product?.originalPrice && product.originalPrice > product.price
+//       ? Math.round((1 - product.price / product.originalPrice) * 100)
+//       : 0);
+
+//   return (
+//     <>
+//       {/* Backdrop */}
+//       <div
+//         className={`fixed inset-0 z-[998] bg-black/40 backdrop-blur-sm transition-opacity duration-300 ${
+//           open
+//             ? "opacity-100 pointer-events-auto"
+//             : "opacity-0 pointer-events-none"
+//         }`}
+//         onClick={onClose}
+//       />
+
+//       {/* Drawer panel */}
+//       <div
+//         className={`fixed top-0 right-0 h-full z-[999] w-full max-w-2xl bg-white shadow-2xl flex flex-col transition-transform duration-300 ease-in-out ${
+//           open ? "translate-x-0" : "translate-x-full"
+//         }`}
+//       >
+//         {!product ? null : (
+//           <>
+//             {/* ── Drawer Header ─────────────────────────────────────────── */}
+//             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+//               <div className="flex items-center gap-3 min-w-0">
+//                 {/* Back / close arrow */}
+//                 <button
+//                   onClick={onClose}
+//                   className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer flex-shrink-0"
+//                 >
+//                   ←
+//                 </button>
+//                 <div className="min-w-0">
+//                   <h2 className="font-bold text-gray-900 text-sm truncate leading-tight">
+//                     {product.name}
+//                   </h2>
+//                   {product.subtitle && (
+//                     <p className="text-xs text-gray-400 truncate">
+//                       {product.subtitle}
+//                     </p>
+//                   )}
+//                 </div>
+//               </div>
+//               <div className="flex items-center gap-2 flex-shrink-0">
+//                 <button
+//                   onClick={() => onEdit(product._id)}
+//                   className="flex items-center gap-1.5 px-4 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium transition-colors cursor-pointer"
+//                 >
+//                   ✏️ Edit
+//                 </button>
+//               </div>
+//             </div>
+
+//             {/* ── Scrollable Body ───────────────────────────────────────── */}
+//             <div className="flex-1 overflow-y-auto">
+//               {/* Image gallery */}
+//               <div className="px-5 pt-5 pb-4 border-b border-gray-100">
+//                 <div className="relative w-full aspect-[4/3] bg-gray-50 rounded-xl overflow-hidden border border-gray-100">
+//                   {product.images?.[activeImage] ? (
+//                     <Image
+//                       src={product.images[activeImage].src}
+//                       alt={product.images[activeImage].alt || product.name}
+//                       fill
+//                       className="object-cover"
+//                     />
+//                   ) : (
+//                     <div className="w-full h-full flex items-center justify-center text-gray-300 text-5xl">
+//                       🖼
+//                     </div>
+//                   )}
+//                   {discount > 0 && (
+//                     <span className="absolute top-3 left-3 bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow">
+//                       -{discount}%
+//                     </span>
+//                   )}
+//                   <span className="absolute bottom-3 right-3 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full">
+//                     {activeImage + 1} / {product.images.length}
+//                   </span>
+//                 </div>
+//                 {product.images?.length > 1 && (
+//                   <div className="flex gap-2 mt-3 flex-wrap">
+//                     {product.images.map((img, i) => (
+//                       <button
+//                         key={i}
+//                         onClick={() => setActiveImage(i)}
+//                         className={`relative w-14 h-14 rounded-lg overflow-hidden border-2 transition-all cursor-pointer flex-shrink-0 ${
+//                           i === activeImage
+//                             ? "border-amber-500 shadow-sm shadow-amber-200"
+//                             : "border-gray-200 hover:border-amber-300"
+//                         }`}
+//                       >
+//                         <Image
+//                           src={img.src}
+//                           alt={img.alt || `view ${i + 1}`}
+//                           fill
+//                           className="object-cover"
+//                         />
+//                       </button>
+//                     ))}
+//                   </div>
+//                 )}
+//               </div>
+
+//               {/* Pricing + badges */}
+//               <div className="px-5 py-4 border-b border-gray-100">
+//                 <div className="flex items-end gap-3 flex-wrap mb-3">
+//                   <span className="text-2xl font-bold text-gray-900 tracking-tight">
+//                     {product.priceFormatted ??
+//                       `₹${product.price.toLocaleString("en-IN")}`}
+//                   </span>
+//                   {product.originalPrice && (
+//                     <span className="text-sm line-through text-gray-400">
+//                       {product.originalPriceFormatted ??
+//                         `₹${product.originalPrice.toLocaleString("en-IN")}`}
+//                     </span>
+//                   )}
+//                   {discount > 0 && (
+//                     <span className="text-sm font-semibold text-red-500">
+//                       {discount}% off
+//                     </span>
+//                   )}
+//                   {product.currency && (
+//                     <span className="text-xs text-gray-400 ml-auto">
+//                       {product.currency}
+//                     </span>
+//                   )}
+//                 </div>
+//                 <div className="flex items-center gap-1.5 flex-wrap">
+//                   {product.isActive ? (
+//                     <Badge label="Active" color="emerald" />
+//                   ) : (
+//                     <Badge label="Inactive" color="red" />
+//                   )}
+//                   {product.isFeatured && (
+//                     <Badge label="Featured" color="amber" />
+//                   )}
+//                   {product.bisHallmark && (
+//                     <Badge label="BIS Hallmark" color="blue" />
+//                   )}
+//                   {product.tag && <Badge label={product.tag} color="violet" />}
+//                 </div>
+//               </div>
+
+//               {/* Details grid */}
+//               <div className="px-5 py-4 border-b border-gray-100 space-y-5">
+//                 {/* Identity */}
+//                 <SectionBlock title="Identity" icon="🏷️">
+//                   <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+//                     <InfoRow label="SKU" value={product.sku} />
+//                     <InfoRow
+//                       label="Slug"
+//                       value={
+//                         <span className="font-mono text-xs break-all">
+//                           {product.slug}
+//                         </span>
+//                       }
+//                     />
+//                     <InfoRow label="Category" value={product.category} />
+//                     <InfoRow
+//                       label="Collection"
+//                       value={
+//                         product.collection ? (
+//                           <span>
+//                             {product.collection.name}{" "}
+//                             <span className="text-gray-400 text-xs font-normal">
+//                               /{product.collection.slug}
+//                             </span>
+//                           </span>
+//                         ) : undefined
+//                       }
+//                     />
+//                     <InfoRow
+//                       label="Stock"
+//                       value={
+//                         product.stock != null ? product.stock : "Unlimited"
+//                       }
+//                     />
+//                     <InfoRow label="Sort Order" value={product.sortOrder} />
+//                   </div>
+//                 </SectionBlock>
+
+//                 {/* Material */}
+//                 <SectionBlock title="Material & Craftsmanship" icon="✨">
+//                   <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+//                     <InfoRow label="Purity" value={product.purity} />
+//                     <InfoRow label="Metal" value={product.metal} />
+//                     <InfoRow label="Weight" value={product.weightGrams} />
+//                     <InfoRow
+//                       label="Country of Origin"
+//                       value={product.countryOfOrigin}
+//                     />
+//                     <InfoRow
+//                       label="BIS Hallmark"
+//                       value={
+//                         product.bisHallmark != null ? (
+//                           <span
+//                             className={
+//                               product.bisHallmark
+//                                 ? "text-emerald-600"
+//                                 : "text-gray-400"
+//                             }
+//                           >
+//                             {product.bisHallmark
+//                               ? "✓ Certified"
+//                               : "Not Certified"}
+//                           </span>
+//                         ) : undefined
+//                       }
+//                     />
+//                   </div>
+//                 </SectionBlock>
+//               </div>
+
+//               {/* Sizes */}
+//               {product.sizes && product.sizes.length > 0 && (
+//                 <div className="px-5 py-4 border-b border-gray-100">
+//                   <SectionBlock title="Sizes" icon="📐">
+//                     <div className="flex gap-2 flex-wrap">
+//                       {product.sizes.map((s, i) => (
+//                         <span
+//                           key={i}
+//                           className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${
+//                             s.available
+//                               ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+//                               : "bg-gray-100 text-gray-400 border-gray-200 line-through"
+//                           }`}
+//                         >
+//                           {s.label}
+//                           {!s.available && (
+//                             <span className="ml-1 text-[10px] no-underline">
+//                               OOS
+//                             </span>
+//                           )}
+//                         </span>
+//                       ))}
+//                     </div>
+//                   </SectionBlock>
+//                 </div>
+//               )}
+
+//               {/* Specifications */}
+//               {product.specifications && product.specifications.length > 0 && (
+//                 <div className="px-5 py-4 border-b border-gray-100">
+//                   <SectionBlock title="Specifications" icon="📋">
+//                     <div className="grid grid-cols-1 gap-2">
+//                       {product.specifications.map((s, i) => (
+//                         <div
+//                           key={i}
+//                           className="flex items-center gap-2.5 bg-gray-50 px-3 py-2 rounded-xl border border-gray-100"
+//                         >
+//                           {s.icon && (
+//                             <span className="text-base flex-shrink-0">
+//                               {s.icon}
+//                             </span>
+//                           )}
+//                           <span className="text-xs text-gray-500 flex-shrink-0 w-24 truncate">
+//                             {s.key}
+//                           </span>
+//                           <span className="text-sm font-semibold text-gray-800">
+//                             {s.value}
+//                           </span>
+//                         </div>
+//                       ))}
+//                     </div>
+//                   </SectionBlock>
+//                 </div>
+//               )}
+
+//               {/* Content */}
+//               {(product.shortDescription ||
+//                 product.longDescription ||
+//                 product.ourPromise) && (
+//                 <div className="px-5 py-4 border-b border-gray-100">
+//                   <SectionBlock title="Content" icon="📝">
+//                     <div className="space-y-3">
+//                       {product.shortDescription && (
+//                         <div>
+//                           <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">
+//                             Short Description
+//                           </p>
+//                           <p className="text-sm text-gray-700 leading-relaxed">
+//                             {product.shortDescription}
+//                           </p>
+//                         </div>
+//                       )}
+//                       {product.longDescription && (
+//                         <div>
+//                           <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">
+//                             Long Description
+//                           </p>
+//                           <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+//                             {product.longDescription}
+//                           </p>
+//                         </div>
+//                       )}
+//                       {product.ourPromise && (
+//                         <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+//                           <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-500 mb-1">
+//                             Our Promise
+//                           </p>
+//                           <p className="text-sm text-amber-800 leading-relaxed">
+//                             {product.ourPromise}
+//                           </p>
+//                         </div>
+//                       )}
+//                     </div>
+//                   </SectionBlock>
+//                 </div>
+//               )}
+
+//               {/* Supporting Images */}
+//               {(product.offerBannerImage || product.sizeChartImage) && (
+//                 <div className="px-5 py-4 border-b border-gray-100">
+//                   <SectionBlock title="Supporting Images" icon="🖼️">
+//                     <div className="space-y-3">
+//                       {product.offerBannerImage && (
+//                         <div>
+//                           <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1.5">
+//                             Offer Banner
+//                           </p>
+//                           <div className="relative w-full h-20 rounded-xl overflow-hidden border border-gray-200">
+//                             <Image
+//                               src={product.offerBannerImage}
+//                               alt="Offer Banner"
+//                               fill
+//                               className="object-cover"
+//                             />
+//                           </div>
+//                         </div>
+//                       )}
+//                       {product.sizeChartImage && (
+//                         <div>
+//                           <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1.5">
+//                             Size Chart
+//                           </p>
+//                           <div className="relative w-full h-36 rounded-xl overflow-hidden border border-gray-200 bg-white">
+//                             <Image
+//                               src={product.sizeChartImage}
+//                               alt="Size Chart"
+//                               fill
+//                               className="object-contain"
+//                             />
+//                           </div>
+//                         </div>
+//                       )}
+//                     </div>
+//                   </SectionBlock>
+//                 </div>
+//               )}
+
+//               {/* SEO */}
+//               {(product.seoTitle ||
+//                 product.seoDescription ||
+//                 (product.seoKeywords && product.seoKeywords.length > 0)) && (
+//                 <div className="px-5 py-4 border-b border-gray-100">
+//                   <SectionBlock title="SEO" icon="🔍">
+//                     <div className="space-y-3">
+//                       {product.seoTitle && (
+//                         <InfoRow label="SEO Title" value={product.seoTitle} />
+//                       )}
+//                       {product.seoDescription && (
+//                         <InfoRow
+//                           label="SEO Description"
+//                           value={product.seoDescription}
+//                         />
+//                       )}
+//                       {product.seoKeywords &&
+//                         product.seoKeywords.length > 0 && (
+//                           <div>
+//                             <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1.5">
+//                               Keywords
+//                             </p>
+//                             <div className="flex flex-wrap gap-1.5">
+//                               {product.seoKeywords.map((kw, i) => (
+//                                 <span
+//                                   key={i}
+//                                   className="px-2.5 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded-full text-xs font-medium"
+//                                 >
+//                                   {kw}
+//                                 </span>
+//                               ))}
+//                             </div>
+//                           </div>
+//                         )}
+//                     </div>
+//                   </SectionBlock>
+//                 </div>
+//               )}
+
+//               {/* Record Info */}
+//               <div className="px-5 py-4 pb-8">
+//                 <SectionBlock title="Record Info" icon="🕐">
+//                   <div className="grid grid-cols-1 gap-3">
+//                     <InfoRow
+//                       label="Created"
+//                       value={formatDate(product.createdAt)}
+//                     />
+//                     <InfoRow
+//                       label="Last Updated"
+//                       value={formatDate(product.updatedAt)}
+//                     />
+//                     <InfoRow
+//                       label="Product ID"
+//                       value={
+//                         <span className="font-mono text-xs text-gray-500 break-all">
+//                           {product._id}
+//                         </span>
+//                       }
+//                     />
+//                   </div>
+//                 </SectionBlock>
+//               </div>
+//             </div>
+//           </>
+//         )}
+//       </div>
+//     </>
+//   );
+// }
+
 "use client";
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+
+// ─── Types ─────────────────────────────────────────────────────────────────────
 
 interface ProductImage {
   src: string;
@@ -12,18 +605,32 @@ interface Specification {
   value: string;
   icon?: string;
 }
-interface Size {
-  label: string;
-  available: boolean;
-}
 interface Collection {
   _id: string;
   name: string;
   slug: string;
 }
+interface VariantOption {
+  name: string;
+  values: string[];
+}
+interface Variant {
+  _id: string;
+  title?: string;
+  sku?: string;
+  barcode?: string;
+  price: number;
+  originalPrice?: number | null;
+  stock?: number | null;
+  weightGrams?: number;
+  isDefault: boolean;
+  isActive: boolean;
+  options?: Record<string, string>;
+  images?: ProductImage[];
+}
+
 interface Product {
   _id: string;
-  id?: string;
   name: string;
   slug: string;
   subtitle?: string;
@@ -31,24 +638,21 @@ interface Product {
   collection?: Collection | null;
   category?: string;
   price: number;
-  originalPrice?: number;
+  originalPrice?: number | null;
   priceFormatted?: string;
   originalPriceFormatted?: string;
   discountPct?: number;
   currency?: string;
   tag?: string;
-  purity?: string;
-  metal?: string;
-  bisHallmark?: boolean;
-  countryOfOrigin?: string;
   shortDescription?: string;
   longDescription?: string;
   ourPromise?: string;
-  weightGrams?: string;
+  weightGrams?: number;
+  options?: VariantOption[];
+  variants?: Variant[];
   images: ProductImage[];
   offerBannerImage?: string;
   sizeChartImage?: string;
-  sizes?: Size[];
   specifications?: Specification[];
   seoTitle?: string;
   seoDescription?: string;
@@ -68,6 +672,8 @@ interface ProductViewDrawerProps {
   onEdit: (id: string) => void;
 }
 
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+
 function formatDate(iso?: string) {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("en-IN", {
@@ -79,24 +685,41 @@ function formatDate(iso?: string) {
   });
 }
 
+function formatINR(n: number) {
+  return `₹${n.toLocaleString("en-IN")}`;
+}
+
+// ─── Primitives ────────────────────────────────────────────────────────────────
+
+type BadgeColor =
+  | "amber"
+  | "emerald"
+  | "red"
+  | "blue"
+  | "gray"
+  | "violet"
+  | "rose";
+
+const BADGE_MAP: Record<BadgeColor, string> = {
+  amber: "bg-amber-100   text-amber-700   border-amber-200",
+  emerald: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  red: "bg-red-100     text-red-600     border-red-200",
+  blue: "bg-blue-100    text-blue-700    border-blue-200",
+  gray: "bg-gray-100    text-gray-500    border-gray-200",
+  violet: "bg-violet-100  text-violet-700  border-violet-200",
+  rose: "bg-rose-100    text-rose-600    border-rose-200",
+};
+
 function Badge({
   label,
   color = "gray",
 }: {
   label: string;
-  color?: "amber" | "emerald" | "red" | "blue" | "gray" | "violet";
+  color?: BadgeColor;
 }) {
-  const map = {
-    amber: "bg-amber-100 text-amber-700 border-amber-200",
-    emerald: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    red: "bg-red-100 text-red-600 border-red-200",
-    blue: "bg-blue-100 text-blue-700 border-blue-200",
-    gray: "bg-gray-100 text-gray-600 border-gray-200",
-    violet: "bg-violet-100 text-violet-700 border-violet-200",
-  };
   return (
     <span
-      className={`inline-flex items-center text-[11px] font-semibold uppercase tracking-wide px-2.5 py-0.5 rounded-full border ${map[color]}`}
+      className={`inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${BADGE_MAP[color]}`}
     >
       {label}
     </span>
@@ -106,7 +729,7 @@ function Badge({
 function InfoRow({ label, value }: { label: string; value?: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">
+      <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400">
         {label}
       </span>
       <span className="text-sm font-medium text-gray-800">
@@ -129,7 +752,7 @@ function SectionBlock({
     <div>
       <div className="flex items-center gap-1.5 mb-3">
         {icon && <span className="text-sm">{icon}</span>}
-        <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+        <h4 className="text-[9px] font-bold uppercase tracking-widest text-gray-400">
           {title}
         </h4>
       </div>
@@ -138,7 +761,152 @@ function SectionBlock({
   );
 }
 
-// ── Main Drawer ───────────────────────────────────────────────────────────────
+function Divider() {
+  return <div className="border-b border-gray-100" />;
+}
+
+// ─── Variant row ───────────────────────────────────────────────────────────────
+
+function VariantRow({ variant }: { variant: Variant }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasImages = variant.images && variant.images.length > 0;
+  const label =
+    variant.title ||
+    Object.values(variant.options ?? {}).join(" / ") ||
+    "Variant";
+  const discount =
+    variant.originalPrice && variant.originalPrice > variant.price
+      ? Math.round((1 - variant.price / variant.originalPrice) * 100)
+      : 0;
+
+  return (
+    <div
+      className={`rounded-xl border-2 overflow-hidden transition-colors ${
+        variant.isDefault ? "border-amber-300" : "border-gray-100"
+      }`}
+    >
+      {/* Header row */}
+      <button
+        type="button"
+        onClick={() => setExpanded((e) => !e)}
+        className="w-full flex items-center justify-between px-3 py-2.5 bg-gray-50 hover:bg-gray-100/60 transition-colors cursor-pointer text-left gap-3"
+      >
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          {variant.isDefault && (
+            <span className="text-[9px] font-bold uppercase bg-amber-500 text-white px-2 py-0.5 rounded-full tracking-wider flex-shrink-0">
+              Default
+            </span>
+          )}
+          {!variant.isActive && (
+            <span className="text-[9px] font-bold uppercase bg-gray-300 text-white px-2 py-0.5 rounded-full tracking-wider flex-shrink-0">
+              Inactive
+            </span>
+          )}
+          <span className="text-sm font-semibold text-gray-700 truncate">
+            {label}
+          </span>
+          {variant.options &&
+            Object.entries(variant.options).map(([k, v]) => (
+              <span
+                key={k}
+                className="text-[10px] bg-white border border-gray-200 text-gray-500 px-2 py-0.5 rounded-full flex-shrink-0"
+              >
+                {k}: {v}
+              </span>
+            ))}
+        </div>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <span className="text-sm font-bold text-gray-800">
+            {formatINR(variant.price)}
+          </span>
+          {discount > 0 && (
+            <span className="text-[10px] font-bold text-red-500">
+              -{discount}%
+            </span>
+          )}
+          <span
+            className={`text-xs text-gray-400 transition-transform ${
+              expanded ? "rotate-180" : ""
+            }`}
+          >
+            ▾
+          </span>
+        </div>
+      </button>
+
+      {/* Expanded details */}
+      {expanded && (
+        <div className="px-3 pb-3 pt-2 bg-white space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3">
+            <InfoRow label="Price" value={formatINR(variant.price)} />
+            {variant.originalPrice != null && (
+              <InfoRow
+                label="Original Price"
+                value={
+                  <span className="line-through text-gray-400">
+                    {formatINR(variant.originalPrice)}
+                  </span>
+                }
+              />
+            )}
+            <InfoRow
+              label="Stock"
+              value={variant.stock != null ? variant.stock : "Unlimited"}
+            />
+            <InfoRow
+              label="Weight"
+              value={
+                variant.weightGrams != null
+                  ? `${variant.weightGrams}g`
+                  : undefined
+              }
+            />
+            {variant.sku && (
+              <InfoRow
+                label="SKU"
+                value={<span className="font-mono text-xs">{variant.sku}</span>}
+              />
+            )}
+            {variant.barcode && (
+              <InfoRow
+                label="Barcode"
+                value={
+                  <span className="font-mono text-xs">{variant.barcode}</span>
+                }
+              />
+            )}
+          </div>
+
+          {/* Variant images */}
+          {hasImages && (
+            <div>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">
+                Images
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {variant.images!.map((img, i) => (
+                  <div
+                    key={i}
+                    className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-100 flex-shrink-0"
+                  >
+                    <Image
+                      src={img.src}
+                      alt={img.alt || label}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Drawer ────────────────────────────────────────────────────────────────────
 
 export default function ProductViewDrawer({
   product,
@@ -148,18 +916,12 @@ export default function ProductViewDrawer({
 }: ProductViewDrawerProps) {
   const [activeImage, setActiveImage] = useState(0);
 
-  // Reset image index when product changes
   useEffect(() => {
     setActiveImage(0);
   }, [product?._id]);
 
-  // Lock body scroll when open
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    document.body.style.overflow = open ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
@@ -170,6 +932,12 @@ export default function ProductViewDrawer({
     (product?.originalPrice && product.originalPrice > product.price
       ? Math.round((1 - product.price / product.originalPrice) * 100)
       : 0);
+
+  const hasVariants = product?.variants && product.variants.length > 0;
+  const hasOptions = product?.options && product.options.length > 0;
+  const defaultVariant = hasVariants
+    ? product!.variants!.find((v) => v.isDefault)
+    : null;
 
   return (
     <>
@@ -183,7 +951,7 @@ export default function ProductViewDrawer({
         onClick={onClose}
       />
 
-      {/* Drawer panel */}
+      {/* Panel */}
       <div
         className={`fixed top-0 right-0 h-full z-[999] w-full max-w-2xl bg-white shadow-2xl flex flex-col transition-transform duration-300 ease-in-out ${
           open ? "translate-x-0" : "translate-x-full"
@@ -191,13 +959,12 @@ export default function ProductViewDrawer({
       >
         {!product ? null : (
           <>
-            {/* ── Drawer Header ─────────────────────────────────────────── */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0 bg-white">
               <div className="flex items-center gap-3 min-w-0">
-                {/* Back / close arrow */}
                 <button
                   onClick={onClose}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer flex-shrink-0"
+                  className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer flex-shrink-0 text-lg"
                 >
                   ←
                 </button>
@@ -212,21 +979,19 @@ export default function ProductViewDrawer({
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <button
-                  onClick={() => onEdit(product._id)}
-                  className="flex items-center gap-1.5 px-4 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium transition-colors cursor-pointer"
-                >
-                  ✏️ Edit
-                </button>
-              </div>
+              <button
+                onClick={() => onEdit(product._id)}
+                className="flex items-center gap-1.5 px-4 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer flex-shrink-0 shadow-sm shadow-amber-200"
+              >
+                ✏️ Edit
+              </button>
             </div>
 
-            {/* ── Scrollable Body ───────────────────────────────────────── */}
-            <div className="flex-1 overflow-y-auto">
-              {/* Image gallery */}
-              <div className="px-5 pt-5 pb-4 border-b border-gray-100">
-                <div className="relative w-full aspect-[4/3] bg-gray-50 rounded-xl overflow-hidden border border-gray-100">
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
+              {/* Gallery */}
+              <div className="px-5 pt-5 pb-4">
+                <div className="relative w-full aspect-[4/3] bg-gray-50 rounded-2xl overflow-hidden border border-gray-100">
                   {product.images?.[activeImage] ? (
                     <Image
                       src={product.images[activeImage].src}
@@ -235,8 +1000,8 @@ export default function ProductViewDrawer({
                       className="object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-300 text-5xl">
-                      🖼
+                    <div className="w-full h-full flex items-center justify-center text-gray-200 text-5xl">
+                      ⊟
                     </div>
                   )}
                   {discount > 0 && (
@@ -244,9 +1009,11 @@ export default function ProductViewDrawer({
                       -{discount}%
                     </span>
                   )}
-                  <span className="absolute bottom-3 right-3 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full">
-                    {activeImage + 1} / {product.images.length}
-                  </span>
+                  {product.images.length > 0 && (
+                    <span className="absolute bottom-3 right-3 bg-black/40 text-white text-[10px] px-2 py-0.5 rounded-full">
+                      {activeImage + 1} / {product.images.length}
+                    </span>
+                  )}
                 </div>
                 {product.images?.length > 1 && (
                   <div className="flex gap-2 mt-3 flex-wrap">
@@ -254,7 +1021,7 @@ export default function ProductViewDrawer({
                       <button
                         key={i}
                         onClick={() => setActiveImage(i)}
-                        className={`relative w-14 h-14 rounded-lg overflow-hidden border-2 transition-all cursor-pointer flex-shrink-0 ${
+                        className={`relative w-12 h-12 rounded-xl overflow-hidden border-2 transition-all cursor-pointer flex-shrink-0 ${
                           i === activeImage
                             ? "border-amber-500 shadow-sm shadow-amber-200"
                             : "border-gray-200 hover:border-amber-300"
@@ -272,21 +1039,20 @@ export default function ProductViewDrawer({
                 )}
               </div>
 
-              {/* Pricing + badges */}
-              <div className="px-5 py-4 border-b border-gray-100">
+              {/* Price + badges */}
+              <div className="px-5 py-4">
                 <div className="flex items-end gap-3 flex-wrap mb-3">
                   <span className="text-2xl font-bold text-gray-900 tracking-tight">
-                    {product.priceFormatted ??
-                      `₹${product.price.toLocaleString("en-IN")}`}
+                    {product.priceFormatted ?? formatINR(product.price)}
                   </span>
-                  {product.originalPrice && (
+                  {product.originalPrice != null && (
                     <span className="text-sm line-through text-gray-400">
                       {product.originalPriceFormatted ??
-                        `₹${product.originalPrice.toLocaleString("en-IN")}`}
+                        formatINR(product.originalPrice)}
                     </span>
                   )}
                   {discount > 0 && (
-                    <span className="text-sm font-semibold text-red-500">
+                    <span className="text-sm font-bold text-red-500">
                       {discount}% off
                     </span>
                   )}
@@ -297,27 +1063,31 @@ export default function ProductViewDrawer({
                   )}
                 </div>
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  {product.isActive ? (
-                    <Badge label="Active" color="emerald" />
-                  ) : (
-                    <Badge label="Inactive" color="red" />
-                  )}
+                  <Badge
+                    label={product.isActive ? "Active" : "Inactive"}
+                    color={product.isActive ? "emerald" : "red"}
+                  />
                   {product.isFeatured && (
                     <Badge label="Featured" color="amber" />
-                  )}
-                  {product.bisHallmark && (
-                    <Badge label="BIS Hallmark" color="blue" />
                   )}
                   {product.tag && <Badge label={product.tag} color="violet" />}
                 </div>
               </div>
 
-              {/* Details grid */}
-              <div className="px-5 py-4 border-b border-gray-100 space-y-5">
-                {/* Identity */}
+              {/* Identity */}
+              <div className="px-5 py-4">
                 <SectionBlock title="Identity" icon="🏷️">
                   <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                    <InfoRow label="SKU" value={product.sku} />
+                    <InfoRow
+                      label="SKU"
+                      value={
+                        product.sku ? (
+                          <span className="font-mono text-xs">
+                            {product.sku}
+                          </span>
+                        ) : undefined
+                      }
+                    />
                     <InfoRow
                       label="Slug"
                       value={
@@ -347,62 +1117,86 @@ export default function ProductViewDrawer({
                       }
                     />
                     <InfoRow label="Sort Order" value={product.sortOrder} />
-                  </div>
-                </SectionBlock>
-
-                {/* Material */}
-                <SectionBlock title="Material & Craftsmanship" icon="✨">
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                    <InfoRow label="Purity" value={product.purity} />
-                    <InfoRow label="Metal" value={product.metal} />
-                    <InfoRow label="Weight" value={product.weightGrams} />
-                    <InfoRow
-                      label="Country of Origin"
-                      value={product.countryOfOrigin}
-                    />
-                    <InfoRow
-                      label="BIS Hallmark"
-                      value={
-                        product.bisHallmark != null ? (
-                          <span
-                            className={
-                              product.bisHallmark
-                                ? "text-emerald-600"
-                                : "text-gray-400"
-                            }
-                          >
-                            {product.bisHallmark
-                              ? "✓ Certified"
-                              : "Not Certified"}
-                          </span>
-                        ) : undefined
-                      }
-                    />
+                    {product.weightGrams != null && (
+                      <InfoRow
+                        label="Weight"
+                        value={`${product.weightGrams}g`}
+                      />
+                    )}
                   </div>
                 </SectionBlock>
               </div>
 
-              {/* Sizes */}
-              {product.sizes && product.sizes.length > 0 && (
-                <div className="px-5 py-4 border-b border-gray-100">
-                  <SectionBlock title="Sizes" icon="📐">
-                    <div className="flex gap-2 flex-wrap">
-                      {product.sizes.map((s, i) => (
-                        <span
+              {/* Options */}
+              {hasOptions && (
+                <div className="px-5 py-4">
+                  <SectionBlock title="Option Axes" icon="⊞">
+                    <div className="space-y-2">
+                      {product.options!.map((opt, i) => (
+                        <div
                           key={i}
-                          className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${
-                            s.available
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : "bg-gray-100 text-gray-400 border-gray-200 line-through"
-                          }`}
+                          className="flex items-start gap-3 bg-gray-50 rounded-xl px-3 py-2 border border-gray-100"
                         >
-                          {s.label}
-                          {!s.available && (
-                            <span className="ml-1 text-[10px] no-underline">
-                              OOS
+                          <span className="text-xs font-semibold text-gray-600 w-24 flex-shrink-0 pt-0.5">
+                            {opt.name}
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {opt.values.map((v) => (
+                              <span
+                                key={v}
+                                className="text-xs bg-white border border-gray-200 text-gray-600 px-2 py-0.5 rounded-full"
+                              >
+                                {v}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </SectionBlock>
+                </div>
+              )}
+
+              {/* Variants */}
+              {hasVariants && (
+                <div className="px-5 py-4">
+                  <SectionBlock
+                    title={`Variants (${product.variants!.length})`}
+                    icon="◧"
+                  >
+                    {/* Default variant summary */}
+                    {defaultVariant && (
+                      <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-amber-500 mb-1">
+                          Default Variant
+                        </p>
+                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                          <span className="text-sm font-semibold text-amber-800">
+                            {defaultVariant.title ||
+                              Object.values(defaultVariant.options ?? {}).join(
+                                " / ",
+                              )}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-amber-700">
+                              {formatINR(defaultVariant.price)}
                             </span>
-                          )}
-                        </span>
+                            {defaultVariant.stock != null ? (
+                              <span className="text-xs text-amber-600">
+                                {defaultVariant.stock} in stock
+                              </span>
+                            ) : (
+                              <span className="text-xs text-amber-600">
+                                Unlimited
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      {product.variants!.map((v) => (
+                        <VariantRow key={v._id} variant={v} />
                       ))}
                     </div>
                   </SectionBlock>
@@ -411,13 +1205,13 @@ export default function ProductViewDrawer({
 
               {/* Specifications */}
               {product.specifications && product.specifications.length > 0 && (
-                <div className="px-5 py-4 border-b border-gray-100">
+                <div className="px-5 py-4">
                   <SectionBlock title="Specifications" icon="📋">
                     <div className="grid grid-cols-1 gap-2">
                       {product.specifications.map((s, i) => (
                         <div
                           key={i}
-                          className="flex items-center gap-2.5 bg-gray-50 px-3 py-2 rounded-xl border border-gray-100"
+                          className="flex items-center gap-2.5 bg-gray-50 px-3 py-2.5 rounded-xl border border-gray-100"
                         >
                           {s.icon && (
                             <span className="text-base flex-shrink-0">
@@ -441,12 +1235,12 @@ export default function ProductViewDrawer({
               {(product.shortDescription ||
                 product.longDescription ||
                 product.ourPromise) && (
-                <div className="px-5 py-4 border-b border-gray-100">
+                <div className="px-5 py-4">
                   <SectionBlock title="Content" icon="📝">
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {product.shortDescription && (
                         <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">
                             Short Description
                           </p>
                           <p className="text-sm text-gray-700 leading-relaxed">
@@ -456,7 +1250,7 @@ export default function ProductViewDrawer({
                       )}
                       {product.longDescription && (
                         <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">
                             Long Description
                           </p>
                           <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
@@ -465,8 +1259,8 @@ export default function ProductViewDrawer({
                         </div>
                       )}
                       {product.ourPromise && (
-                        <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
-                          <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-500 mb-1">
+                        <div className="bg-amber-50 border border-amber-100 rounded-xl p-3.5">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-amber-500 mb-1.5">
                             Our Promise
                           </p>
                           <p className="text-sm text-amber-800 leading-relaxed">
@@ -479,14 +1273,14 @@ export default function ProductViewDrawer({
                 </div>
               )}
 
-              {/* Supporting Images */}
+              {/* Supporting images */}
               {(product.offerBannerImage || product.sizeChartImage) && (
-                <div className="px-5 py-4 border-b border-gray-100">
+                <div className="px-5 py-4">
                   <SectionBlock title="Supporting Images" icon="🖼️">
                     <div className="space-y-3">
                       {product.offerBannerImage && (
                         <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1.5">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">
                             Offer Banner
                           </p>
                           <div className="relative w-full h-20 rounded-xl overflow-hidden border border-gray-200">
@@ -501,7 +1295,7 @@ export default function ProductViewDrawer({
                       )}
                       {product.sizeChartImage && (
                         <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1.5">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">
                             Size Chart
                           </p>
                           <div className="relative w-full h-36 rounded-xl overflow-hidden border border-gray-200 bg-white">
@@ -522,8 +1316,8 @@ export default function ProductViewDrawer({
               {/* SEO */}
               {(product.seoTitle ||
                 product.seoDescription ||
-                (product.seoKeywords && product.seoKeywords.length > 0)) && (
-                <div className="px-5 py-4 border-b border-gray-100">
+                product.seoKeywords?.length) && (
+                <div className="px-5 py-4">
                   <SectionBlock title="SEO" icon="🔍">
                     <div className="space-y-3">
                       {product.seoTitle && (
@@ -538,7 +1332,7 @@ export default function ProductViewDrawer({
                       {product.seoKeywords &&
                         product.seoKeywords.length > 0 && (
                           <div>
-                            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1.5">
+                            <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">
                               Keywords
                             </p>
                             <div className="flex flex-wrap gap-1.5">
@@ -558,8 +1352,8 @@ export default function ProductViewDrawer({
                 </div>
               )}
 
-              {/* Record Info */}
-              <div className="px-5 py-4 pb-8">
+              {/* Record info */}
+              <div className="px-5 py-4 pb-10">
                 <SectionBlock title="Record Info" icon="🕐">
                   <div className="grid grid-cols-1 gap-3">
                     <InfoRow

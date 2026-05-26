@@ -48,7 +48,7 @@ export default function AdminProductsPage() {
     page: 1,
     limit: 15,
     totalPages: 1,
-    activeProducts: 0
+    activeProducts: 0,
   });
 
   // Filters
