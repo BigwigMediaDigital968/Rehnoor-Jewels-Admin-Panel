@@ -146,122 +146,432 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
 
   // ─── The actual sidebar content ──────────────────────────────────────────
   const SidebarContent = () => (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        overflow: "hidden",
-      }}
-    >
-      {/* ── Logo / Header ─────────────────────────────────────────────── */}
+    <>
       <div
         style={{
-          padding: collapsed && !isMobile ? "20px 0" : "20px 20px",
           display: "flex",
-          alignItems: "center",
-          justifyContent: collapsed && !isMobile ? "center" : "space-between",
-          borderBottom: "1px solid rgba(255,255,255,0.08)",
-          flexShrink: 0,
-          minHeight: 72,
+          flexDirection: "column",
+          height: "100%",
+          overflow: "hidden",
         }}
       >
-        {/* Logo mark — always visible */}
+        {/* ── Logo / Header ─────────────────────────────────────────────── */}
         <div
           style={{
+            padding: collapsed && !isMobile ? "20px 0" : "20px 20px",
             display: "flex",
             alignItems: "center",
-            gap: 10,
-            overflow: "hidden",
+            justifyContent: collapsed && !isMobile ? "center" : "space-between",
+            borderBottom: "1px solid rgba(255,255,255,0.08)",
+            flexShrink: 0,
+            minHeight: 72,
           }}
         >
+          {/* Logo mark — always visible */}
           <div
             style={{
-              width: 34,
-              height: 34,
-              borderRadius: 10,
-              background: "rgba(252,193,81,0.18)",
-              border: "1.5px solid rgba(252,193,81,0.35)",
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-              fontSize: 16,
-              color: "#fff",
+              gap: 10,
+              overflow: "hidden",
             }}
           >
-            ✦
+            <div
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 10,
+                background: "rgba(252,193,81,0.18)",
+                border: "1.5px solid rgba(252,193,81,0.35)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                fontSize: 16,
+                color: "#fff",
+              }}
+            >
+              ✦
+            </div>
+
+            <div
+              style={{
+                overflow: "hidden",
+                transition:
+                  "max-width 0.32s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease",
+                maxWidth: collapsed && !isMobile ? 0 : 160,
+                opacity: collapsed && !isMobile ? 0 : 1,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: "Cinzel, serif",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: "#FCC151",
+                  letterSpacing: "0.1em",
+                }}
+              >
+                REHNOOR
+              </div>
+              <div
+                style={{
+                  fontFamily: "sans-serif",
+                  fontSize: 10,
+                  color: "rgba(255,255,255,0.45)",
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                }}
+              >
+                Admin Console
+              </div>
+            </div>
           </div>
 
-          <div
-            style={{
-              overflow: "hidden",
-              transition:
-                "max-width 0.32s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease",
-              maxWidth: collapsed && !isMobile ? 0 : 160,
-              opacity: collapsed && !isMobile ? 0 : 1,
-              whiteSpace: "nowrap",
-            }}
-          >
+          {/* Mobile close button */}
+          {isMobile && (
+            <button
+              onClick={() => setMobileOpen(false)}
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 8,
+                border: "1px solid rgba(255,255,255,0.15)",
+                background: "transparent",
+                color: "rgba(255,255,255,0.6)",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <X size={15} />
+            </button>
+          )}
+        </div>
+
+        {/* ── Navigation ────────────────────────────────────────────────── */}
+        <nav
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            overflowX: "hidden",
+            padding: "10px 8px",
+            scrollbarWidth: "none",
+          }}
+        >
+          {/* Section label */}
+          {!collapsed || isMobile ? (
             <div
               style={{
                 fontFamily: "Cinzel, serif",
-                fontSize: 14,
-                fontWeight: 700,
-                color: "#FCC151",
-                letterSpacing: "0.1em",
-              }}
-            >
-              REHNOOR
-            </div>
-            <div
-              style={{
-                fontFamily: "sans-serif",
-                fontSize: 10,
-                color: "rgba(255,255,255,0.45)",
-                letterSpacing: "0.12em",
+                fontSize: 8,
+                letterSpacing: "0.2em",
                 textTransform: "uppercase",
+                color: "rgba(255,255,255,0.25)",
+                padding: "4px 10px 10px",
+                transition: "opacity 0.2s ease",
               }}
             >
-              Admin Console
+              Main Menu
             </div>
-          </div>
-        </div>
+          ) : (
+            <div style={{ height: 14 }} />
+          )}
 
-        {/* Mobile close button */}
-        {isMobile && (
-          <button
-            onClick={() => setMobileOpen(false)}
+          {NAV_ITEMS.map((item) => {
+            const active = isActive(item.href);
+            const childActive = isChildActive(item);
+            const isOpen = openMenus[item.id];
+            const Icon = item.icon;
+            const showLabel = !collapsed || isMobile;
+
+            return (
+              <div key={item.id} style={{ marginBottom: 2 }}>
+                {/* ── Parent button ── */}
+                <div style={{ position: "relative" }}>
+                  <button
+                    className="nav-item-btn"
+                    onClick={() => {
+                      if (item.children) {
+                        if (collapsed && !isMobile) {
+                          setCollapsed(false);
+                          setTimeout(
+                            () =>
+                              setOpenMenus((p) => ({ ...p, [item.id]: true })),
+                            50,
+                          );
+                        } else {
+                          toggleMenu(item.id);
+                        }
+                      } else if (item.href) {
+                        router.push(item.href);
+                      }
+                    }}
+                    onMouseEnter={() => setHoveredItem(item.id)}
+                    onMouseLeave={() => setHoveredItem(null)}
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: collapsed && !isMobile ? "10px 0" : "10px 12px",
+                      justifyContent:
+                        collapsed && !isMobile ? "center" : "flex-start",
+                      border: "none",
+                      borderRadius: 10,
+                      background:
+                        active || childActive
+                          ? "rgba(252,193,81,0.12)"
+                          : "transparent",
+                      color:
+                        active || childActive
+                          ? "#FCC151"
+                          : "rgba(255,255,255,0.75)",
+                      cursor: "pointer",
+                      position: "relative",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {/* Active indicator bar */}
+                    {(active || childActive) && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          left: 0,
+                          top: "20%",
+                          height: "60%",
+                          width: 3,
+                          borderRadius: "0 3px 3px 0",
+                          background: "#FCC151",
+                          animation: "fadeIn 0.2s ease",
+                        }}
+                      />
+                    )}
+
+                    {/* Icon */}
+                    <Icon
+                      size={16}
+                      style={{
+                        flexShrink: 0,
+                        color:
+                          active || childActive
+                            ? "#FCC151"
+                            : "rgba(255,255,255,0.8)",
+                        transition: "color 0.18s",
+                      }}
+                    />
+
+                    {/* Label */}
+                    <span
+                      style={{
+                        fontFamily: "Cinzel, serif",
+                        fontSize: 15,
+                        fontWeight: active || childActive ? 700 : 400,
+                        letterSpacing: "0.04em",
+                        flex: 1,
+
+                        textAlign: "left",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        maxWidth: showLabel ? 160 : 0,
+                        opacity: showLabel ? 1 : 0,
+                        transition:
+                          "max-width 0.32s cubic-bezier(0.4,0,0.2,1), opacity 0.22s ease",
+                      }}
+                    >
+                      {item.label}
+                    </span>
+
+                    {/* Chevron for expandable items */}
+                    {item.children && showLabel && (
+                      <div
+                        style={{
+                          flexShrink: 0,
+                          transition:
+                            "transform 0.25s cubic-bezier(0.4,0,0.2,1)",
+                          transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+                          color: "rgba(255,255,255,0.35)",
+                          display: "flex",
+                        }}
+                      >
+                        <ChevronDown size={13} />
+                      </div>
+                    )}
+                  </button>
+
+                  {/* Collapsed tooltip */}
+                  {collapsed && !isMobile && hoveredItem === item.id && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: "calc(100% + 12px)",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        background: "#1C1C1C",
+                        color: "#fff",
+                        padding: "6px 12px",
+                        borderRadius: 8,
+                        fontFamily: "Cinzel, serif",
+                        fontSize: 16,
+                        letterSpacing: "0.08em",
+                        whiteSpace: "nowrap",
+                        pointerEvents: "none",
+                        zIndex: 9999,
+                        boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
+                        animation: "fadeIn 0.15s ease",
+                      }}
+                    >
+                      {item.label}
+                      <div
+                        style={{
+                          position: "absolute",
+                          left: -4,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          width: 8,
+                          height: 8,
+                          background: "#1C1C1C",
+                          rotate: "45deg",
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Submenu (animated) ── */}
+                {item.children && showLabel && (
+                  <div
+                    style={{
+                      overflow: "hidden",
+                      maxHeight: isOpen ? `${item.children.length * 48}px` : 0,
+                      transition: "max-height 0.3s cubic-bezier(0.4,0,0.2,1)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        paddingLeft: 14,
+                        paddingTop: 2,
+                        paddingBottom: 2,
+                        opacity: isOpen ? 1 : 0,
+                        transition: "opacity 0.25s ease",
+                        animation: isOpen ? "subSlide 0.2s ease" : "none",
+                      }}
+                    >
+                      {/* Connector line */}
+                      <div
+                        style={{
+                          position: "relative",
+                          paddingLeft: 16,
+                          borderLeft: "1.5px solid rgba(255,255,255,0.1)",
+                          marginLeft: 7,
+                        }}
+                      >
+                        {item.children.map((sub) => {
+                          const subActive = isActive(sub.href);
+                          return (
+                            <button
+                              key={sub.id}
+                              className="sub-item-btn"
+                              onClick={() => router.push(sub.href)}
+                              style={{
+                                width: "100%",
+                                textAlign: "left",
+                                padding: "8px 10px",
+                                border: "none",
+                                borderRadius: 8,
+                                background: subActive
+                                  ? "rgba(252,193,81,0.08)"
+                                  : "transparent",
+                                color: subActive
+                                  ? "#FCC151"
+                                  : "rgba(255,255,255,0.5)",
+                                cursor: "pointer",
+                                fontFamily: "sans-serif",
+                                fontSize: 12,
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                marginBottom: 1,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: 5,
+                                  height: 5,
+                                  borderRadius: "50%",
+                                  background: subActive
+                                    ? "#FCC151"
+                                    : "rgba(255,255,255,0.25)",
+                                  flexShrink: 0,
+                                  transition: "background 0.15s",
+                                }}
+                              />
+                              {sub.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </nav>
+
+        {/* ── Collapse toggle (desktop only) ───────────────────────────── */}
+        {!isMobile && (
+          <div
             style={{
-              width: 30,
-              height: 30,
-              borderRadius: 8,
-              border: "1px solid rgba(255,255,255,0.15)",
-              background: "transparent",
-              color: "rgba(255,255,255,0.6)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              padding: "12px 8px",
+              borderTop: "1px solid rgba(255,255,255,0.08)",
               flexShrink: 0,
             }}
           >
-            <X size={15} />
-          </button>
+            <button
+              className="collapse-btn"
+              onClick={() => setCollapsed(!collapsed)}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: collapsed ? "center" : "flex-start",
+                gap: 10,
+                padding: "9px 12px",
+                border: "none",
+                borderRadius: 10,
+                background: "transparent",
+                color: "rgba(255,255,255,0.4)",
+                cursor: "pointer",
+              }}
+            >
+              {collapsed ? (
+                <PanelLeftOpen size={16} />
+              ) : (
+                <>
+                  <PanelLeftClose size={16} />
+                  <span
+                    style={{
+                      fontFamily: "Cinzel, serif",
+                      fontSize: 12,
+                      letterSpacing: "0.08em",
+                      opacity: collapsed ? 0 : 1,
+                      transition: "opacity 0.2s ease",
+                    }}
+                  >
+                    Collapse
+                  </span>
+                </>
+              )}
+            </button>
+          </div>
         )}
       </div>
 
-      {/* ── Navigation ────────────────────────────────────────────────── */}
-      <nav
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          overflowX: "hidden",
-          padding: "10px 8px",
-          scrollbarWidth: "none",
-        }}
-      >
-        <style>{`
+      <style>{`
           nav::-webkit-scrollbar { display: none; }
           .nav-item-btn { transition: background 0.18s ease, color 0.18s ease; }
           .nav-item-btn:hover { background: rgba(255,255,255,0.07) !important; }
@@ -278,314 +588,7 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
             to   { opacity: 1; }
           }
         `}</style>
-
-        {/* Section label */}
-        {!collapsed || isMobile ? (
-          <div
-            style={{
-              fontFamily: "Cinzel, serif",
-              fontSize: 8,
-              letterSpacing: "0.2em",
-              textTransform: "uppercase",
-              color: "rgba(255,255,255,0.25)",
-              padding: "4px 10px 10px",
-              transition: "opacity 0.2s ease",
-            }}
-          >
-            Main Menu
-          </div>
-        ) : (
-          <div style={{ height: 14 }} />
-        )}
-
-        {NAV_ITEMS.map((item) => {
-          const active = isActive(item.href);
-          const childActive = isChildActive(item);
-          const isOpen = openMenus[item.id];
-          const Icon = item.icon;
-          const showLabel = !collapsed || isMobile;
-
-          return (
-            <div key={item.id} style={{ marginBottom: 2 }}>
-              {/* ── Parent button ── */}
-              <div style={{ position: "relative" }}>
-                <button
-                  className="nav-item-btn"
-                  onClick={() => {
-                    if (item.children) {
-                      if (collapsed && !isMobile) {
-                        setCollapsed(false);
-                        setTimeout(
-                          () =>
-                            setOpenMenus((p) => ({ ...p, [item.id]: true })),
-                          50,
-                        );
-                      } else {
-                        toggleMenu(item.id);
-                      }
-                    } else if (item.href) {
-                      router.push(item.href);
-                    }
-                  }}
-                  onMouseEnter={() => setHoveredItem(item.id)}
-                  onMouseLeave={() => setHoveredItem(null)}
-                  style={{
-                    width: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: collapsed && !isMobile ? "10px 0" : "10px 12px",
-                    justifyContent:
-                      collapsed && !isMobile ? "center" : "flex-start",
-                    border: "none",
-                    borderRadius: 10,
-                    background:
-                      active || childActive
-                        ? "rgba(252,193,81,0.12)"
-                        : "transparent",
-                    color:
-                      active || childActive
-                        ? "#FCC151"
-                        : "rgba(255,255,255,0.75)",
-                    cursor: "pointer",
-                    position: "relative",
-                    overflow: "hidden",
-                  }}
-                >
-                  {/* Active indicator bar */}
-                  {(active || childActive) && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        left: 0,
-                        top: "20%",
-                        height: "60%",
-                        width: 3,
-                        borderRadius: "0 3px 3px 0",
-                        background: "#FCC151",
-                        animation: "fadeIn 0.2s ease",
-                      }}
-                    />
-                  )}
-
-                  {/* Icon */}
-                  <Icon
-                    size={16}
-                    style={{
-                      flexShrink: 0,
-                      color:
-                        active || childActive
-                          ? "#FCC151"
-                          : "rgba(255,255,255,0.8)",
-                      transition: "color 0.18s",
-                    }}
-                  />
-
-                  {/* Label */}
-                  <span
-                    style={{
-                      fontFamily: "Cinzel, serif",
-                      fontSize: 15,
-                      fontWeight: active || childActive ? 700 : 400,
-                      letterSpacing: "0.04em",
-                      flex: 1,
-
-                      textAlign: "left",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      maxWidth: showLabel ? 160 : 0,
-                      opacity: showLabel ? 1 : 0,
-                      transition:
-                        "max-width 0.32s cubic-bezier(0.4,0,0.2,1), opacity 0.22s ease",
-                    }}
-                  >
-                    {item.label}
-                  </span>
-
-                  {/* Chevron for expandable items */}
-                  {item.children && showLabel && (
-                    <div
-                      style={{
-                        flexShrink: 0,
-                        transition: "transform 0.25s cubic-bezier(0.4,0,0.2,1)",
-                        transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
-                        color: "rgba(255,255,255,0.35)",
-                        display: "flex",
-                      }}
-                    >
-                      <ChevronDown size={13} />
-                    </div>
-                  )}
-                </button>
-
-                {/* Collapsed tooltip */}
-                {collapsed && !isMobile && hoveredItem === item.id && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      left: "calc(100% + 12px)",
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      background: "#1C1C1C",
-                      color: "#fff",
-                      padding: "6px 12px",
-                      borderRadius: 8,
-                      fontFamily: "Cinzel, serif",
-                      fontSize: 16,
-                      letterSpacing: "0.08em",
-                      whiteSpace: "nowrap",
-                      pointerEvents: "none",
-                      zIndex: 9999,
-                      boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
-                      animation: "fadeIn 0.15s ease",
-                    }}
-                  >
-                    {item.label}
-                    <div
-                      style={{
-                        position: "absolute",
-                        left: -4,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        width: 8,
-                        height: 8,
-                        background: "#1C1C1C",
-                        rotate: "45deg",
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* ── Submenu (animated) ── */}
-              {item.children && showLabel && (
-                <div
-                  style={{
-                    overflow: "hidden",
-                    maxHeight: isOpen ? `${item.children.length * 48}px` : 0,
-                    transition: "max-height 0.3s cubic-bezier(0.4,0,0.2,1)",
-                  }}
-                >
-                  <div
-                    style={{
-                      paddingLeft: 14,
-                      paddingTop: 2,
-                      paddingBottom: 2,
-                      opacity: isOpen ? 1 : 0,
-                      transition: "opacity 0.25s ease",
-                      animation: isOpen ? "subSlide 0.2s ease" : "none",
-                    }}
-                  >
-                    {/* Connector line */}
-                    <div
-                      style={{
-                        position: "relative",
-                        paddingLeft: 16,
-                        borderLeft: "1.5px solid rgba(255,255,255,0.1)",
-                        marginLeft: 7,
-                      }}
-                    >
-                      {item.children.map((sub) => {
-                        const subActive = isActive(sub.href);
-                        return (
-                          <button
-                            key={sub.id}
-                            className="sub-item-btn"
-                            onClick={() => router.push(sub.href)}
-                            style={{
-                              width: "100%",
-                              textAlign: "left",
-                              padding: "8px 10px",
-                              border: "none",
-                              borderRadius: 8,
-                              background: subActive
-                                ? "rgba(252,193,81,0.08)"
-                                : "transparent",
-                              color: subActive
-                                ? "#FCC151"
-                                : "rgba(255,255,255,0.5)",
-                              cursor: "pointer",
-                              fontFamily: "sans-serif",
-                              fontSize: 12,
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 8,
-                              marginBottom: 1,
-                            }}
-                          >
-                            <div
-                              style={{
-                                width: 5,
-                                height: 5,
-                                borderRadius: "50%",
-                                background: subActive
-                                  ? "#FCC151"
-                                  : "rgba(255,255,255,0.25)",
-                                flexShrink: 0,
-                                transition: "background 0.15s",
-                              }}
-                            />
-                            {sub.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </nav>
-
-      {/* ── Collapse toggle (desktop only) ───────────────────────────── */}
-      {!isMobile && (
-        <div
-          style={{
-            padding: "12px 8px",
-            borderTop: "1px solid rgba(255,255,255,0.08)",
-            flexShrink: 0,
-          }}
-        >
-          <button
-            className="collapse-btn"
-            onClick={() => setCollapsed(!collapsed)}
-            style={{
-              width: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: collapsed ? "center" : "flex-start",
-              gap: 10,
-              padding: "9px 12px",
-              border: "none",
-              borderRadius: 10,
-              background: "transparent",
-              color: "rgba(255,255,255,0.4)",
-              cursor: "pointer",
-            }}
-          >
-            {collapsed ? (
-              <PanelLeftOpen size={16} />
-            ) : (
-              <>
-                <PanelLeftClose size={16} />
-                <span
-                  style={{
-                    fontFamily: "Cinzel, serif",
-                    fontSize: 12,
-                    letterSpacing: "0.08em",
-                    opacity: collapsed ? 0 : 1,
-                    transition: "opacity 0.2s ease",
-                  }}
-                >
-                  Collapse
-                </span>
-              </>
-            )}
-          </button>
-        </div>
-      )}
-    </div>
+    </>
   );
 
   // ─── DESKTOP sidebar ──────────────────────────────────────────────────────

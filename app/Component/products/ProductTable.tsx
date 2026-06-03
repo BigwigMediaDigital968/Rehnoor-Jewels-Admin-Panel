@@ -420,7 +420,7 @@ export default function ProductTable({
                     <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                       {label}
                     </p>
-                    <p className="text-[9px] text-gray-300 font-normal mt-0.5 normal-case tracking-normal">
+                    <p className="text-[9px] text-gray-400 font-normal mt-0.5 normal-case tracking-normal">
                       {hint}
                     </p>
                   </th>
@@ -488,18 +488,13 @@ export default function ProductTable({
                           <p className="font-medium text-sm text-gray-900 group-hover:text-amber-700 transition-colors truncate max-w-[180px]">
                             {product.name}
                           </p>
-                          <p className="text-xs text-gray-400 truncate">
+                          {/* <p className="text-xs text-gray-400 truncate">
                             {product.subtitle || product.sku || product.slug}
-                          </p>
+                          </p> */}
                           <div className="flex items-center gap-1 mt-0.5">
                             {product.isFeatured && (
                               <span className="text-[9px] font-semibold bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-full border border-amber-200">
                                 FEATURED
-                              </span>
-                            )}
-                            {product.bisHallmark && (
-                              <span className="text-[9px] font-semibold bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full border border-blue-200">
-                                BIS
                               </span>
                             )}
                           </div>

@@ -46,7 +46,7 @@ export default function AdminProductsPage() {
   const [pagination, setPagination] = useState({
     total: 0,
     page: 1,
-    limit: 15,
+    limit: 35,
     totalPages: 1,
     activeProducts: 0,
   });
@@ -104,7 +104,7 @@ export default function AdminProductsPage() {
       if (filterCollection) params.set("collection", filterCollection);
       params.set("sort", sort);
       params.set("page", String(page));
-      params.set("limit", "15");
+      params.set("limit", "35");
 
       const res = await fetch(`${API_BASE}/api/products/admin/all?${params}`, {
         headers: authHeaders(),
@@ -114,7 +114,7 @@ export default function AdminProductsPage() {
       // console.log("prd list data", data)
       setProducts(data.data || []);
       setPagination(
-        data.pagination || { total: 0, page: 1, limit: 15, totalPages: 1 },
+        data.pagination || { total: 0, page: 1, limit: 35, totalPages: 1 },
       );
     } catch {
       showFeedback("error", "Failed to load products");
@@ -286,6 +286,39 @@ export default function AdminProductsPage() {
     showFeedback("success", "Product assigned to collection.");
   };
 
+  const downloadExcel = async () => {
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/products/admin/export/excel`,
+        {
+          headers: authHeaders(),
+        },
+      );
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error(text);
+        throw new Error("Export failed");
+      }
+
+      const blob = await response.blob();
+
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "products.xlsx";
+
+      document.body.appendChild(a);
+      a.click();
+
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   return (
     <>
       <style>{`
@@ -337,25 +370,46 @@ export default function AdminProductsPage() {
             </p>
             <h1 className="text-2xl font-semibold text-gray-900">Products</h1>
           </div>
-          <button
-            onClick={() => router.push("/admin/products/add")}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[#003720] hover:bg-[#004d2d] text-white rounded-xl text-sm font-medium transition-colors cursor-pointer shadow-sm"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          <div className="flex gap-2 justify-between items-center">
+            <button
+              onClick={downloadExcel}
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#003720] hover:bg-[#004d2d] text-white rounded-xl text-sm font-medium transition-colors cursor-pointer shadow-sm"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            Add Product
-          </button>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              Export Data
+            </button>
+            <button
+              onClick={() => router.push("/admin/products/add")}
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#003720] hover:bg-[#004d2d] text-white rounded-xl text-sm font-medium transition-colors cursor-pointer shadow-sm"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              Add Product
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
