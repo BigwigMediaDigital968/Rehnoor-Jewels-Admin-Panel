@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 // ─────────────────────────────────────────────────────────────────
 // CONFIG
@@ -233,8 +234,7 @@ function Sparkline({
   const pts = data
     .map(
       (v, i) =>
-        `${(i / (data.length - 1)) * w},${
-          height - ((v - min) / range) * (height - 6) - 3
+        `${(i / (data.length - 1)) * w},${height - ((v - min) / range) * (height - 6) - 3
         }`,
     )
     .join(" ");
@@ -589,6 +589,7 @@ function SectionCard({
   title,
   subtitle,
   actionLabel,
+  actionUrl,
   onAction,
   children,
   noPad,
@@ -596,6 +597,7 @@ function SectionCard({
   title: string;
   subtitle?: string;
   actionLabel?: string;
+  actionUrl?: string;
   onAction?: () => void;
   children: React.ReactNode;
   noPad?: boolean;
@@ -626,9 +628,9 @@ function SectionCard({
           </h3>
           {subtitle && <p style={{ ...MUTED, marginTop: 2 }}>{subtitle}</p>}
         </div>
-        {onAction && (
-          <button
-            onClick={onAction}
+        {actionUrl ? (
+          <Link
+            href={actionUrl}
             style={{
               padding: "6px 16px",
               borderRadius: 8,
@@ -648,7 +650,32 @@ function SectionCard({
             }
           >
             {actionLabel ?? "View All →"}
-          </button>
+          </Link>
+        ) : (
+          onAction && (
+            <button
+              onClick={onAction}
+              style={{
+              padding: "6px 16px",
+              borderRadius: 8,
+              border: "1px solid rgba(252,193,81,0.25)",
+              background: "transparent",
+              color: "var(--rj-gold, #fcc151)",
+              fontSize: 12,
+              cursor: "pointer",
+              fontFamily: SANS,
+              transition: "all 0.2s",
+            }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "rgba(252,193,81,0.1)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "transparent")
+              }
+            >
+              {actionLabel ?? "View All →"}
+            </button>
+          )
         )}
       </div>
       {children}
@@ -1114,23 +1141,25 @@ export default function DashboardPageAPI() {
     }
   }, []);
 
-  console.log(orders);
+  // console.log(orders);
 
   const fetchProducts = useCallback(async () => {
     setLoading("products", true);
     try {
-      const data = await apiFetch("/api/products?limit=100");
+      const data = await apiFetch("/api/products");
       const list: Product[] = data.data ?? data.products ?? data ?? [];
       setProducts(list);
-
-      const active = list.filter((p) => p.isActive !== false).length;
-      const outOfStock = list.filter((p) => (p.stock ?? 1) === 0).length;
+      const res = await apiFetch("/api/products/stats");
+      // console.log("stats", res)
+      const stats = res?.stats
+      const active = stats?.products?.active;
+      const outOfStock = stats?.products?.outOfStock;
       setStats((prev) => ({
         ...prev,
         products: {
-          total: list.length,
+          total: stats?.products?.all,
           active,
-          inactive: list.length - active,
+          inactive: stats?.products?.all - active,
           outOfStock,
           newThisMonth: 0,
         },
@@ -1485,6 +1514,7 @@ export default function DashboardPageAPI() {
               subtitle="Current status snapshot"
               onAction={() => setActiveTab("orders")}
               actionLabel="All Orders →"
+              actionUrl="/admin/order-management"
             >
               {loadingMap.orders ? (
                 <div
@@ -1635,6 +1665,7 @@ export default function DashboardPageAPI() {
             subtitle="Last 10 transactions"
             onAction={() => setActiveTab("orders")}
             actionLabel="All Orders →"
+            actionUrl="/admin/order-management"
           >
             {loadingMap.orders ? (
               <div
@@ -1904,8 +1935,8 @@ export default function DashboardPageAPI() {
                               o.payment?.status === "paid"
                                 ? "#81c784"
                                 : o.payment?.status === "failed"
-                                ? "#ef5350"
-                                : "#fbc02d", // pending
+                                  ? "#ef5350"
+                                  : "#fbc02d", // pending
                           }}
                         >
                           {o.payment?.status ?? "—"}
@@ -2098,8 +2129,8 @@ export default function DashboardPageAPI() {
                           (p.stock ?? 1) === 0
                             ? "#ef9a9a"
                             : (p.stock ?? 10) < 5
-                            ? "#fcc151"
-                            : "#81c784",
+                              ? "#fcc151"
+                              : "#81c784",
                       }}
                     >
                       {p.stock ?? "—"}
@@ -2139,6 +2170,32 @@ export default function DashboardPageAPI() {
                 ))}
               </DataTable>
             )}
+            <div className="flex justify-end pt-2">
+              <Link
+                href="/admin/products"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  color: "var(--rj-gold, #fcc151)",
+                  textDecoration: "none",
+                  fontSize: 13,
+                  fontWeight: 500,
+                  fontFamily: SANS,
+                  letterSpacing: "0.02em",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = "0.85";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = "1";
+                }}
+              >
+                See All Products
+                <span>→</span>
+              </Link>
+            </div>
           </SectionCard>
         </div>
       )}
@@ -2558,9 +2615,8 @@ function CollectionItem({ c, router }: { c: Collection; router: any }) {
         cursor: "pointer",
         transition: "all 0.15s",
         background: hov ? "rgba(252,193,81,0.06)" : "rgba(255,255,255,0.025)",
-        border: `1px solid ${
-          hov ? "rgba(252,193,81,0.2)" : "rgba(252,193,81,0.07)"
-        }`,
+        border: `1px solid ${hov ? "rgba(252,193,81,0.2)" : "rgba(252,193,81,0.07)"
+          }`,
       }}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
