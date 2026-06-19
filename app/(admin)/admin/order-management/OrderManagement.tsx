@@ -46,6 +46,7 @@ interface OrderItem {
   category: string;
   sizeSelected: string;
   unitPrice: number;
+  variant: any;
   originalPrice: number | null;
   quantity: number;
   lineTotal: number;
@@ -623,8 +624,7 @@ function RazorpayActionModal({
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Refund failed");
       onSuccess(
-        `Refund of ${inr(Number(refundAmount))} initiated for ${
-          order.orderNumber
+        `Refund of ${inr(Number(refundAmount))} initiated for ${order.orderNumber
         }.`,
       );
       onClose();
@@ -987,8 +987,8 @@ function RazorpayActionModal({
                           {k === "amount"
                             ? inr(Number(v) / 100)
                             : k === "created_at"
-                            ? fmtFull(new Date(Number(v) * 1000).toISOString())
-                            : String(v)}
+                              ? fmtFull(new Date(Number(v) * 1000).toISOString())
+                              : String(v)}
                         </p>
                       </div>
                     ))}
@@ -1283,8 +1283,8 @@ function ShiprocketActionModal({
                     background: s.done
                       ? "#22c55e"
                       : tab === s.id
-                      ? "#166534"
-                      : "#E5E0D4",
+                        ? "#166534"
+                        : "#E5E0D4",
                     color: s.done || tab === s.id ? "#fff" : "#888",
                     display: "flex",
                     alignItems: "center",
@@ -1364,11 +1364,10 @@ function ShiprocketActionModal({
                   },
                   {
                     label: "Items",
-                    value: `${
-                      order.items?.length
-                    } item(s), ₹${order.pricing.subtotal.toLocaleString(
-                      "en-IN",
-                    )}`,
+                    value: `${order.items?.length
+                      } item(s), ₹${order.pricing.subtotal.toLocaleString(
+                        "en-IN",
+                      )}`,
                   },
                   {
                     label: "Payment mode",
@@ -2329,15 +2328,15 @@ function FeedbackModal({
   const title = isSuccess
     ? "Done!"
     : isError
-    ? "Error"
-    : modal.type === "confirm-delete"
-    ? `Delete ${modal.orderNumber}?`
-    : "";
+      ? "Error"
+      : modal.type === "confirm-delete"
+        ? `Delete ${modal.orderNumber}?`
+        : "";
   const body = isSuccess
     ? modal.message
     : isError
-    ? modal.message
-    : "This will permanently delete the order. This cannot be undone.";
+      ? modal.message
+      : "This will permanently delete the order. This cannot be undone.";
   return (
     <ModalOverlay onClose={onClose} zIndex={1400}>
       <ModalCard maxWidth={420} accentColor={accent}>
@@ -2407,7 +2406,6 @@ function FeedbackModal({
     </ModalOverlay>
   );
 }
-
 // ─── Order Detail Modal ───────────────────────────────────────────────────────
 
 function OrderDetailModal({
@@ -2424,12 +2422,12 @@ function OrderDetailModal({
   order: Order;
   onClose: () => void;
   onStatusClick: () => void;
-  onShippingClick: () => void;
-  onPaymentClick: () => void;
-  onNoteClick: () => void;
-  onRazorpayClick: () => void;
-  onShiprocketClick: () => void;
-  onDeleteClick: () => void;
+  onShippingClick?: () => void;
+  onPaymentClick?: () => void;
+  onNoteClick?: () => void;
+  onRazorpayClick?: () => void;
+  onShiprocketClick?: () => void;
+  onDeleteClick?: () => void;
 }) {
   const s = STATUS_CFG[order.status] || STATUS_CFG.pending;
   return (
@@ -2693,9 +2691,8 @@ function OrderDetailModal({
             <div
               style={{
                 background: order.shipping?.awbCode ? "#F0FFF4" : "#FAFAF8",
-                border: `1px solid ${
-                  order.shipping?.awbCode ? "#D1FAE5" : "#E5E0D4"
-                }`,
+                border: `1px solid ${order.shipping?.awbCode ? "#D1FAE5" : "#E5E0D4"
+                  }`,
                 borderRadius: 10,
                 padding: "12px 14px",
                 marginBottom: 16,
@@ -2793,11 +2790,10 @@ function OrderDetailModal({
                   order.payment.method === "cod"
                     ? "#FDFAF4"
                     : order.payment.status === "paid"
-                    ? "#F0FFF4"
-                    : "#F8FAFF",
-                border: `1px solid ${
-                  order.payment.status === "paid" ? "#D1FAE5" : "#E5EEF8"
-                }`,
+                      ? "#F0FFF4"
+                      : "#F8FAFF",
+                border: `1px solid ${order.payment.status === "paid" ? "#D1FAE5" : "#E5EEF8"
+                  }`,
                 borderRadius: 10,
                 padding: "12px 14px",
                 marginBottom: 16,
@@ -2868,11 +2864,11 @@ function OrderDetailModal({
                   },
                   ...(order.payment.paidAt
                     ? [
-                        {
-                          label: "Paid At",
-                          value: fmtFull(order.payment.paidAt),
-                        },
-                      ]
+                      {
+                        label: "Paid At",
+                        value: fmtFull(order.payment.paidAt),
+                      },
+                    ]
                     : []),
                   ...(order.payment.refundId
                     ? [{ label: "Refund ID", value: order.payment.refundId }]
@@ -2987,14 +2983,9 @@ function OrderDetailModal({
                 >
                   <div
                     style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 8,
-                      overflow: "hidden",
-                      background: "#F5F2EA",
                       border: "1px solid #E5E0D4",
-                      flexShrink: 0,
                     }}
+                    className="w-[60px] h-[60px] rounded-lg overflow-hidden bg-[#F5F2EA] shrink-0"
                   >
                     {item.image ? (
                       <img
@@ -3042,6 +3033,25 @@ function OrderDetailModal({
                       {item.sizeSelected ? ` · ${item.sizeSelected}` : ""}
                       {item.customNote ? ` · ${item.customNote}` : ""}
                     </p>
+                    {item?.variant && (
+                      <p
+                        style={{
+                          display: "inline-block",
+                          fontSize: 11,
+                          color: "#555",
+                          backgroundColor: "#f3f4f6",
+                          border: "1px solid #e5e7eb",
+                          borderRadius: 9999,
+                          padding: "4px 10px",
+                          margin: "4px 0 0",
+                          lineHeight: 1.2,
+                          fontWeight: 500,
+                        }}
+                      >
+                        {item?.variant?.title}
+                      </p>
+                    )}
+
                   </div>
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
                     <p
@@ -3085,11 +3095,11 @@ function OrderDetailModal({
                 },
                 ...(order.pricing.discountAmount
                   ? [
-                      {
-                        label: "Discount",
-                        value: `-${inr(order.pricing.discountAmount)}`,
-                      },
-                    ]
+                    {
+                      label: "Discount",
+                      value: `-${inr(order.pricing.discountAmount)}`,
+                    },
+                  ]
                   : []),
                 ...(order.pricing.taxAmount
                   ? [{ label: "Tax/GST", value: inr(order.pricing.taxAmount) }]
@@ -3505,6 +3515,7 @@ export default function OrderManagement() {
         headers: authHeaders(),
       });
       const data = await res.json();
+      console.log("orders", data.data);
       if (!res.ok) throw new Error(data.message || "Failed");
       setOrders(data.data);
       setPagination(data.pagination);
@@ -3583,7 +3594,13 @@ export default function OrderManagement() {
     }
   };
 
-  const viewOrder = modal.type === "view" ? modal.order : null;
+  // const viewOrder = modal.type === "view" ? modal.order : null;
+  // const viewOrder = modal.type === "view" ? modal.order : null;
+  const viewOrder =
+  "order" in modal
+    ? modal.order
+    : null;
+
   const hasActiveFilters = !!(
     search ||
     filterStatus ||
@@ -3639,7 +3656,8 @@ export default function OrderManagement() {
       {modal.type === "status" && (
         <StatusModal
           order={modal.order}
-          onClose={() => setModal({ type: "none" })}
+          // onClose={() => setModal({ type: "none" })}
+          onClose={() => { viewOrder ? openDetail(viewOrder?._id) : setModal({ type: "none" }) }}
           onSuccess={(m) => {
             setModal({ type: "success", message: m });
             fetchOrders();
@@ -3650,7 +3668,8 @@ export default function OrderManagement() {
       {modal.type === "shipping" && (
         <ShippingModal
           order={modal.order}
-          onClose={() => setModal({ type: "none" })}
+          // onClose={() => setModal({ type: "none" })}
+          onClose={() => { viewOrder ? openDetail(viewOrder?._id) : setModal({ type: "none" }) }}
           onSuccess={(m) => {
             setModal({ type: "success", message: m });
             fetchOrders();
@@ -3661,7 +3680,9 @@ export default function OrderManagement() {
       {modal.type === "payment" && (
         <PaymentModal
           order={modal.order}
-          onClose={() => setModal({ type: "none" })}
+          // onClose={() => setModal({ type: "none" })}
+          onClose={() => { viewOrder ? openDetail(viewOrder?._id) : setModal({ type: "none" }) }}
+
           onSuccess={(m) => {
             setModal({ type: "success", message: m });
             fetchOrders();
@@ -3672,7 +3693,8 @@ export default function OrderManagement() {
       {modal.type === "note" && (
         <NoteModal
           order={modal.order}
-          onClose={() => setModal({ type: "none" })}
+          // onClose={() => setModal({ type: "none" })}
+          onClose={() => { viewOrder ? openDetail(viewOrder?._id) : setModal({ type: "none" }) }}
           onSuccess={(m) => {
             setModal({ type: "success", message: m });
             fetchOrders();
@@ -3694,7 +3716,9 @@ export default function OrderManagement() {
       {modal.type === "shiprocket_action" && (
         <ShiprocketActionModal
           order={modal.order}
-          onClose={() => setModal({ type: "none" })}
+          // onClose={() => setModal({ type: "none" })}
+          onClose={() => { viewOrder ? openDetail(viewOrder?._id) : setModal({ type: "none" }) }}
+
           onSuccess={(m) => {
             setModal({ type: "success", message: m });
             fetchOrders();
@@ -3882,8 +3906,8 @@ export default function OrderManagement() {
                 v === "true"
                   ? "⚡ Priority"
                   : v === "false"
-                  ? "Normal"
-                  : "Priority",
+                    ? "Normal"
+                    : "Priority",
             },
           ].map((filter, idx) => (
             <div key={idx} className="relative">
