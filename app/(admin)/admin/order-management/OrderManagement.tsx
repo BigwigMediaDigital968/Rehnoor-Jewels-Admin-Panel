@@ -2430,6 +2430,7 @@ function OrderDetailModal({
   onDeleteClick?: () => void;
 }) {
   const s = STATUS_CFG[order.status] || STATUS_CFG.pending;
+  console.log("data", order)
   return (
     <ModalOverlay onClose={onClose} zIndex={1200}>
       <div
@@ -2661,6 +2662,54 @@ function OrderDetailModal({
             <InfoRow label="Email" value={order.customerEmail} mono />
             <InfoRow label="Phone" value={order.customerPhone} />
 
+            {
+              (order.customerNote || order.giftMessage) && (
+                <SectionHead>Shipping Notes</SectionHead>
+
+              )
+            }
+            {order.giftMessage &&
+              (
+                <div
+                  style={{
+                    background: "#F0FFF4",
+                    border: `1px solid #D1FAE5"
+                  }`,
+                    borderRadius: 10,
+                    padding: "12px 14px",
+                    marginBottom: 16,
+                  }}
+                >
+                  <p className="text-xs font-semibold pb-2" style={{ margin: 0, fontWeight: 600 }}>
+                    🎁 Gift Note
+                  </p>
+                  <p className="text-xs text-gray-600 pl-1" style={{ margin: 0, fontWeight: 600 }}>
+                    {order.giftMessage}
+                  </p>
+                </div>
+              )
+            }
+            {order.customerNote &&
+              (
+                <div
+                  style={{
+                    background: "#F0FFF4",
+                    border: `1px solid #D1FAE5"
+                  }`,
+                    borderRadius: 10,
+                    padding: "12px 14px",
+                    marginBottom: 16,
+                  }}
+                >
+                  <p className="text-xs font-semibold pb-2" style={{ margin: 0, fontWeight: 600 }}>
+                    Note
+                  </p>
+                  <p className="text-xs text-gray-600 pl-1" style={{ margin: 0, fontWeight: 600 }}>
+                    {order.customerNote}
+                  </p>
+                </div>
+              )
+            }
             <SectionHead>Shipping Address</SectionHead>
             <div style={{ fontSize: 13, color: "#444", lineHeight: 1.7 }}>
               <p style={{ margin: 0, fontWeight: 600 }}>
@@ -3279,14 +3328,16 @@ function InfoRow({
   value,
   mono,
   compact,
+  className
 }: {
   label: string;
   value: string;
   mono?: boolean;
   compact?: boolean;
+  className?: string
 }) {
   return (
-    <div style={{ marginBottom: compact ? 6 : 10 }}>
+    <div className={className} style={{ marginBottom: compact ? 6 : 10 }}>
       <p style={infoLabelStyle}>{label}</p>
       <p
         style={{
@@ -3597,9 +3648,9 @@ export default function OrderManagement() {
   // const viewOrder = modal.type === "view" ? modal.order : null;
   // const viewOrder = modal.type === "view" ? modal.order : null;
   const viewOrder =
-  "order" in modal
-    ? modal.order
-    : null;
+    "order" in modal
+      ? modal.order
+      : null;
 
   const hasActiveFilters = !!(
     search ||
