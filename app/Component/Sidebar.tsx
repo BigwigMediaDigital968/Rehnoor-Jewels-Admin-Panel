@@ -310,8 +310,8 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
                         router.push(item.href);
                       }
                     }}
-                    onMouseEnter={() => setHoveredItem(item.id)}
-                    onMouseLeave={() => setHoveredItem(null)}
+                    // onMouseEnter={() => setHoveredItem(item.id)}
+                    // onMouseLeave={() => setHoveredItem(null)}
                     style={{
                       width: "100%",
                       display: "flex",
