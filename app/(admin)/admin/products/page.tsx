@@ -134,12 +134,13 @@ export default function AdminProductsPage() {
     () => ({
       total: pagination.total,
       active: pagination?.activeProducts,
-      inactive: products.filter((p) => !p.isActive).length,
+      inactive: pagination.total-pagination?.activeProducts,
       featured: products.filter((p) => p.isFeatured).length,
     }),
     [products, pagination.total],
   );
 
+  console.log(pagination);
   // ─── Selection ───────────────────────────────────────────────────
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
