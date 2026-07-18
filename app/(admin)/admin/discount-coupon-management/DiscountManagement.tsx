@@ -1,6 +1,9 @@
 "use client";
 
+import { Product } from "@/app/Component/products/ProductTable";
 import { useState, useEffect, useCallback, useRef } from "react";
+import { Collection } from "../dashboard/component/DashboardAPI";
+import { ProductDetailModal, ProductPicker, ProductSummary } from "../collections/CollectionManagement";
 
 // ─── Theme colours (matches rj-* CSS vars in your project) ───────────────────
 const T = {
@@ -43,6 +46,9 @@ interface Coupon {
   tags: string[];
   internalNote?: string;
   createdAt: string;
+  applicableProducts: any[];
+  applicableCollections: any[];
+  buyXGetY: any;
 }
 
 interface Analytics {
@@ -70,10 +76,10 @@ const fmt = (n: number) =>
 const fmtDate = (d: string | null) =>
   d
     ? new Date(d).toLocaleDateString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      })
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    })
     : "—";
 
 const statusBadge = (c: Coupon) => {
@@ -152,8 +158,8 @@ function ToastContainer({
               t.type === "success"
                 ? T.emerald
                 : t.type === "error"
-                ? "#7f1d1d"
-                : T.charcoal,
+                  ? "#7f1d1d"
+                  : T.charcoal,
             color: "#fff",
             padding: "12px 18px",
             borderRadius: 10,
@@ -269,8 +275,8 @@ function AnalyticsModal({
 
   const dayEntries = data
     ? Object.entries(data.usageByDay)
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .slice(-14)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(-14)
     : [];
   const maxVal = dayEntries.length
     ? Math.max(...dayEntries.map(([, v]) => v), 1)
@@ -459,7 +465,30 @@ function AnalyticsModal({
 // ─────────────────────────────────────────────────────────────────────────────
 // COUPON FORM MODAL (create + edit)
 // ─────────────────────────────────────────────────────────────────────────────
-const emptyForm = {
+type DiscountForm = {
+  code: string;
+  name: string;
+  description: string;
+  discountType: DiscountType;
+  discountValue: number;
+  maxDiscountAmount: string;
+  minOrderAmount: number;
+  minItemCount: number;
+  usageLimitTotal: string;
+  usageLimitPerUser: number;
+  startsAt: string;
+  expiresAt: string;
+  isActive: boolean;
+  isPaused: boolean;
+  isStackable: boolean;
+  tags: string;
+  internalNote: string;
+  applicableProducts: string[];
+  applicableCollections: string[];
+  buyXGetY:any;
+};
+
+const emptyForm : DiscountForm = {
   code: "",
   name: "",
   description: "",
@@ -477,6 +506,9 @@ const emptyForm = {
   isStackable: false,
   tags: "",
   internalNote: "",
+  applicableProducts: [],
+  applicableCollections: [],
+  buyXGetY:{}
 };
 
 const Field = ({
@@ -502,38 +534,411 @@ const Field = ({
   </div>
 );
 
+
+function ScopeTabs({
+  activeTab,
+  onChange,
+  productCount,
+  collectionCount,
+}: {
+  activeTab: "products" | "collections";
+  onChange: (tab: "products" | "collections") => void;
+  productCount: number;
+  collectionCount: number;
+}) {
+  const tabs: { key: "products" | "collections"; label: string; count: number }[] = [
+    { key: "products", label: "Products", count: productCount },
+    { key: "collections", label: "Collections", count: collectionCount },
+  ];
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const idx = tabs.findIndex((t) => t.key === activeTab);
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      onChange(tabs[(idx + 1) % tabs.length].key);
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      onChange(tabs[(idx - 1 + tabs.length) % tabs.length].key);
+    }
+  };
+
+  return (
+    <div
+      role="tablist"
+      aria-label="Coupon scope"
+      onKeyDown={onKeyDown}
+      style={{
+        display: "flex",
+        gap: 4,
+        borderBottom: `1.5px solid ${T.bone}`,
+        marginBottom: 14,
+      }}
+    >
+      {tabs.map((t) => {
+        const isActive = activeTab === t.key;
+        return (
+          <button
+            key={t.key}
+            role="tab"
+            id={`tab-${t.key}`}
+            type="button"
+            aria-selected={isActive}
+            aria-controls={`panel-${t.key}`}
+            tabIndex={isActive ? 0 : -1}
+            onClick={() => onChange(t.key)}
+            style={{
+              padding: "10px 16px",
+              fontFamily: "sans-serif",
+              fontSize: 13,
+              fontWeight: isActive ? 600 : 500,
+              color: isActive ? T.charcoal : "#999",
+              background: "transparent",
+              border: "none",
+              borderBottom: isActive
+                ? `2px solid ${T.emerald}`
+                : "2px solid transparent",
+              marginBottom: -1.5,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            {t.label}
+            {t.count > 0 && (
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: isActive ? "#fff" : T.charcoal,
+                  background: isActive ? T.emerald : T.bone,
+                  borderRadius: 10,
+                  padding: "1px 7px",
+                  minWidth: 16,
+                  textAlign: "center",
+                }}
+              >
+                {t.count}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function CollectionMultiSelect({
+  collections,
+  selected,
+  onChange,
+}: {
+  collections: Collection[];
+  selected: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const [query, setQuery] = useState("");
+
+  const filtered = collections.filter((c) =>
+    c.name.toLowerCase().includes(query.toLowerCase()),
+  );
+
+  const toggle = (id: string) => {
+    onChange(
+      selected.includes(id)
+        ? selected.filter((s) => s !== id)
+        : [...selected, id],
+    );
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+        <input
+          style={{
+            flex: 1,
+            boxSizing: "border-box",
+            padding: "9px 12px",
+            borderRadius: 8,
+            border: `1.5px solid ${T.bone}`,
+            background: T.ivory,
+            fontFamily: "sans-serif",
+            fontSize: 13,
+            color: T.charcoal,
+            outline: "none",
+          }}
+          placeholder="Search collections…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          aria-label="Search collections"
+        />
+        <button
+          type="button"
+          onClick={() => onChange([])}
+          disabled={selected.length === 0}
+          style={{
+            padding: "9px 14px",
+            borderRadius: 8,
+            border: `1.5px solid ${T.bone}`,
+            background: "transparent",
+            fontFamily: "sans-serif",
+            fontSize: 13,
+            fontWeight: 500,
+            color: selected.length === 0 ? "#bbb" : T.red,
+            cursor: selected.length === 0 ? "default" : "pointer",
+            whiteSpace: "nowrap",
+            flexShrink: 0,
+          }}
+        >
+          Clear All
+        </button>
+      </div>
+      <div
+        role="listbox"
+        aria-multiselectable="true"
+        aria-label="Select collections"
+        style={{
+          maxHeight: 220,
+          overflowY: "auto",
+          border: `1px solid ${T.bone}`,
+          borderRadius: 8,
+        }}
+      >
+        {filtered.length === 0 && (
+          <div
+            style={{
+              padding: 14,
+              fontSize: 13,
+              color: "#999",
+              fontFamily: "sans-serif",
+              textAlign: "center",
+            }}
+          >
+            No collections found.
+          </div>
+        )}
+        {filtered.map((c) => {
+          const isSelected = selected.includes(c._id);
+          return (
+            <div
+              key={c._id}
+              role="option"
+              aria-selected={isSelected}
+              tabIndex={0}
+              onClick={() => toggle(c._id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  toggle(c._id);
+                }
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "10px 12px",
+                cursor: "pointer",
+                borderBottom: `1px solid ${T.bone}`,
+                background: isSelected ? "#f6f1e9" : "transparent",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={() => toggle(c._id)}
+                tabIndex={-1}
+                style={{ pointerEvents: "none" }}
+                aria-hidden="true"
+              />
+              <span
+                style={{
+                  fontFamily: "sans-serif",
+                  fontSize: 13,
+                  color: T.charcoal,
+                }}
+              >
+                {c.name}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {selected.length > 0 && (
+        <div
+          style={{
+            marginTop: 8,
+            fontSize: 12,
+            color: "#777",
+            fontFamily: "sans-serif",
+          }}
+        >
+          {selected.length} collection{selected.length > 1 ? "s" : ""} selected
+        </div>
+      )}
+    </div>
+  );
+}
+
+type FormTabKey = "details" | "products" | "collections";
+
+
+function FormTabs({
+  activeTab,
+  onChange,
+  productCount,
+  collectionCount,
+}: {
+  activeTab: FormTabKey;
+  onChange: (tab: FormTabKey) => void;
+  productCount: number;
+  collectionCount: number;
+}) {
+  const tabs: { key: FormTabKey; label: string; count: number }[] = [
+    { key: "details", label: "Details", count: 0 },
+    { key: "products", label: "Products", count: productCount },
+    { key: "collections", label: "Collections", count: collectionCount },
+  ];
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const idx = tabs.findIndex((t) => t.key === activeTab);
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      onChange(tabs[(idx + 1) % tabs.length].key);
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      onChange(tabs[(idx - 1 + tabs.length) % tabs.length].key);
+    }
+  };
+
+  return (
+    <div
+      role="tablist"
+      aria-label="Coupon form sections"
+      onKeyDown={onKeyDown}
+      style={{
+        display: "flex",
+        gap: 4,
+        borderBottom: `1.5px solid ${T.bone}`,
+        marginBottom: 20,
+      }}
+    >
+      {tabs.map((t) => {
+        const isActive = activeTab === t.key;
+        return (
+          <button
+            key={t.key}
+            role="tab"
+            id={`tab-${t.key}`}
+            type="button"
+            aria-selected={isActive}
+            aria-controls={`panel-${t.key}`}
+            tabIndex={isActive ? 0 : -1}
+            onClick={() => onChange(t.key)}
+            style={{
+              padding: "10px 16px",
+              fontFamily: "sans-serif",
+              fontSize: 13,
+              fontWeight: isActive ? 600 : 500,
+              color: isActive ? T.charcoal : "#999",
+              background: "transparent",
+              border: "none",
+              borderBottom: isActive
+                ? `2px solid ${T.emerald}`
+                : "2px solid transparent",
+              marginBottom: -1.5,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            {t.label}
+            {t.count > 0 && (
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: isActive ? "#fff" : T.charcoal,
+                  background: isActive ? T.emerald : T.bone,
+                  borderRadius: 10,
+                  padding: "1px 7px",
+                  minWidth: 16,
+                  textAlign: "center",
+                }}
+              >
+                {t.count}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function CouponFormModal({
   mode,
   initial,
   onSave,
   onClose,
+  products,
+  collections,
 }: {
   mode: "create" | "edit";
   initial: typeof emptyForm | null;
   onSave: (data: typeof emptyForm) => Promise<void>;
   onClose: () => void;
+  products: Product[];
+  collections: Collection[];
 }) {
   const [form, setForm] = useState<typeof emptyForm>(initial || emptyForm);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
 
+  const [formTab, setFormTab] = useState<FormTabKey>("details");
+
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>(
+    products?.map((p) => (typeof p === "string" ? p : p._id)) ?? [],
+  );
+  const [selectedCollectionIds, setSelectedCollectionIds] = useState<
+    string[]
+  >(collections?.map((c) => (typeof c === "string" ? c : c._id)) ?? []);
+
+  const [productPopup, setProductPopup] = useState<ProductSummary | null>(
+    null,
+  );
+
   const set = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
 
   const handleSubmit = async () => {
-    if (!form.code.trim()) return setErr("Coupon code is required.");
-    if (!form.name.trim()) return setErr("Coupon name is required.");
-    if (!form.discountType) return setErr("Discount type is required.");
+    const fail = (msg: string) => {
+      setFormTab("details");
+      setErr(msg);
+    };
+    if (!form.code.trim()) return fail("Coupon code is required.");
+    if (!form.name.trim()) return fail("Coupon name is required.");
+    if (!form.discountType) return fail("Discount type is required.");
     if (
       ["flat", "percent"].includes(form.discountType) &&
       Number(form.discountValue) <= 0
     )
-      return setErr("Discount value must be greater than 0.");
+      return fail("Discount value must be greater than 0.");
     if (form.discountType === "percent" && Number(form.discountValue) > 100)
-      return setErr("Percent discount cannot exceed 100%.");
+      return fail("Percent discount cannot exceed 100%.");
+    if (
+      form.discountType === "buy_x_get_y" &&
+      !Number(form.buyXGetY?.getQuantity)
+    )
+      return fail("Get Quantity must be greater than 0.");
     setErr("");
     setSaving(true);
     try {
-      await onSave(form);
+      // merge scoped selections into payload before saving
+      await onSave({
+        ...form,
+        applicableProducts: selectedProductIds,
+        applicableCollections: selectedCollectionIds,
+      });
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : "Failed to save.");
     } finally {
@@ -591,13 +996,14 @@ function CouponFormModal({
               {mode === "create" ? "Create Discount Code" : form.code}
             </div>
           </div>
-          <button onClick={onClose} style={closeBtn}>
+          <button onClick={onClose} style={closeBtn} aria-label="Close">
             ✕
           </button>
         </div>
 
         {err && (
           <div
+            role="alert"
             style={{
               background: "#fef2f2",
               border: `1px solid #fecaca`,
@@ -613,7 +1019,20 @@ function CouponFormModal({
           </div>
         )}
 
-        <div style={{ display: "grid", gap: 14 }}>
+        <FormTabs
+          activeTab={formTab}
+          onChange={setFormTab}
+          productCount={selectedProductIds.length}
+          collectionCount={selectedCollectionIds.length}
+        />
+
+        <div
+          role="tabpanel"
+          id="panel-details"
+          aria-labelledby="tab-details"
+          hidden={formTab !== "details"}
+          style={{ display: "grid", gap: 14 }}
+        >
           {/* Row 1 */}
           <div
             style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
@@ -699,6 +1118,64 @@ function CouponFormModal({
               </Field>
             )}
           </div>
+
+          {/* Buy X Get Y */}
+          {form.discountType === "buy_x_get_y" && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr 1fr",
+                gap: 12,
+              }}
+            >
+              <Field label="Buy Quantity (0 = no purchase requirement)">
+                <input
+                  style={inputStyle}
+                  type="number"
+                  min={0}
+                  value={form.buyXGetY?.buyQuantity ?? 0}
+                  onChange={(e) =>
+                    set("buyXGetY", {
+                      ...form.buyXGetY,
+                      buyQuantity: Number(e.target.value),
+                    })
+                  }
+                  placeholder="e.g. 2, or 0"
+                />
+              </Field>
+              <Field label="Get Quantity (free/discounted) *">
+                <input
+                  style={inputStyle}
+                  type="number"
+                  min={1}
+                  value={form.buyXGetY?.getQuantity || ""}
+                  onChange={(e) =>
+                    set("buyXGetY", {
+                      ...form.buyXGetY,
+                      getQuantity: Number(e.target.value),
+                    })
+                  }
+                  placeholder="e.g. 1"
+                />
+              </Field>
+              <Field label="Discount on 'Get' item (%)">
+                <input
+                  style={inputStyle}
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={form.buyXGetY?.getDiscountPercent ?? 100}
+                  onChange={(e) =>
+                    set("buyXGetY", {
+                      ...form.buyXGetY,
+                      getDiscountPercent: Number(e.target.value),
+                    })
+                  }
+                  placeholder="100 = fully free"
+                />
+              </Field>
+            </div>
+          )}
 
           {/* Cart conditions */}
           <div
@@ -810,9 +1287,19 @@ function CouponFormModal({
                 }}
               >
                 <div
+                  role="switch"
+                  aria-checked={Boolean((form as Record<string, unknown>)[key])}
+                  aria-label={label}
+                  tabIndex={0}
                   onClick={() =>
                     set(key, !(form as Record<string, unknown>)[key])
                   }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      set(key, !(form as Record<string, unknown>)[key]);
+                    }
+                  }}
                   style={{
                     width: 38,
                     height: 22,
@@ -845,6 +1332,60 @@ function CouponFormModal({
           </div>
         </div>
 
+        <div
+          role="tabpanel"
+          id="panel-products"
+          aria-labelledby="tab-products"
+          hidden={formTab !== "products"}
+        >
+          <p
+            style={{
+              fontSize: 13,
+              color: "#777",
+              marginBottom: 14,
+              lineHeight: 1.5,
+            }}
+          >
+            Leave empty to apply this coupon storewide. Selecting products
+            restricts it to those items only.
+          </p>
+          <ProductPicker
+            selected={selectedProductIds}
+            onChange={setSelectedProductIds}
+            onViewProduct={(p) => setProductPopup(p)}
+          />
+          {productPopup && (
+            <ProductDetailModal
+              product={productPopup}
+              onClose={() => setProductPopup(null)}
+            />
+          )}
+        </div>
+
+        <div
+          role="tabpanel"
+          id="panel-collections"
+          aria-labelledby="tab-collections"
+          hidden={formTab !== "collections"}
+        >
+          <p
+            style={{
+              fontSize: 13,
+              color: "#777",
+              marginBottom: 14,
+              lineHeight: 1.5,
+            }}
+          >
+            Leave empty to apply this coupon storewide. Selecting collections
+            restricts it to those items only.
+          </p>
+          <CollectionMultiSelect
+            collections={collections}
+            selected={selectedCollectionIds}
+            onChange={setSelectedCollectionIds}
+          />
+        </div>
+
         {/* Footer */}
         <div
           style={{
@@ -871,8 +1412,8 @@ function CouponFormModal({
             {saving
               ? "Saving…"
               : mode === "create"
-              ? "Create Coupon"
-              : "Save Changes"}
+                ? "Create Coupon"
+                : "Save Changes"}
           </button>
         </div>
       </div>
@@ -1367,6 +1908,9 @@ export default function DiscountManagement() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
+  const [products, setProducts] = useState<Product[]>([]);
+  const [collections, setCollections] = useState<Collection[]>([])
+
   // Modals
   const [formModal, setFormModal] = useState<{
     mode: "create" | "edit";
@@ -1413,12 +1957,43 @@ export default function DiscountManagement() {
     }
   }, [page, search, statusFilter, typeFilter, toast]);
 
+  const fetchProductAndCollection = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}` + "/api/products");
+      const productsResponse = await res.json();
+      const productsList: Product[] =
+        productsResponse.data ??
+        productsResponse.products ??
+        productsResponse ??
+        [];
+
+      const resCol = await fetch(`${API}` +
+        "/api/collections?limit=50"
+      );
+      const collectionsResponse = await resCol.json();
+
+      const collectionsList: Collection[] =
+        collectionsResponse.data ??
+        collectionsResponse.collections ??
+        collectionsResponse ??
+        [];
+
+      setProducts(productsList);
+      setCollections(collectionsList);
+    } catch (error) {
+      console.error("Failed to fetch products and collections:", error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchCoupons();
+    fetchProductAndCollection();
   }, [fetchCoupons]);
   useEffect(() => {
     setPage(1);
   }, [search, statusFilter, typeFilter]);
+
+  // console.log(products, collections)
 
   // ── Actions ──────────────────────────────────────────────────────────────
   const handleCreate = async (form: typeof emptyForm) => {
@@ -1476,9 +2051,8 @@ export default function DiscountManagement() {
   const handleToggle = (c: Coupon) => {
     setConfirm({
       title: c.isActive ? "Deactivate Coupon" : "Activate Coupon",
-      message: `Are you sure you want to ${
-        c.isActive ? "deactivate" : "activate"
-      } coupon "${c.code}"?`,
+      message: `Are you sure you want to ${c.isActive ? "deactivate" : "activate"
+        } coupon "${c.code}"?`,
       danger: c.isActive,
       action: async () => {
         try {
@@ -1499,9 +2073,8 @@ export default function DiscountManagement() {
   const handlePause = (c: Coupon) => {
     setConfirm({
       title: c.isPaused ? "Resume Coupon" : "Pause Coupon",
-      message: `This will ${c.isPaused ? "resume" : "pause"} coupon "${
-        c.code
-      }" without changing its dates.`,
+      message: `This will ${c.isPaused ? "resume" : "pause"} coupon "${c.code
+        }" without changing its dates.`,
       action: async () => {
         try {
           await apiFetch(`/${c._id}/pause`, { method: "PATCH" });
@@ -1592,6 +2165,9 @@ export default function DiscountManagement() {
       isStackable: c.isStackable,
       tags: (c.tags || []).join(", "),
       internalNote: c.internalNote || "",
+      applicableProducts: c.applicableProducts || [],
+      applicableCollections: c.applicableCollections || [],
+      buyXGetY: c.buyXGetY,
     };
   };
 
@@ -1639,6 +2215,8 @@ export default function DiscountManagement() {
           initial={formModal.coupon ? couponToForm(formModal.coupon) : null}
           onSave={formModal.mode === "create" ? handleCreate : handleEdit}
           onClose={() => setFormModal(null)}
+          products={products}
+          collections={collections}
         />
       )}
 
@@ -1759,9 +2337,8 @@ export default function DiscountManagement() {
               style={{
                 padding: "8px 14px",
                 borderRadius: 8,
-                border: `1.5px solid ${
-                  statusFilter === f.value ? T.emerald : T.bone
-                }`,
+                border: `1.5px solid ${statusFilter === f.value ? T.emerald : T.bone
+                  }`,
                 fontFamily: "Cinzel, serif",
                 fontSize: 10,
                 letterSpacing: "0.08em",

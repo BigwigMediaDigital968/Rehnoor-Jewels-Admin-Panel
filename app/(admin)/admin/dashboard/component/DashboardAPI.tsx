@@ -95,7 +95,7 @@ interface Product {
   tag?: string;
 }
 
-interface Collection {
+export interface Collection {
   _id: string;
   name: string;
   slug: string;

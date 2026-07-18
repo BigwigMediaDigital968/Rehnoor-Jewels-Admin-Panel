@@ -14,7 +14,7 @@ type CollectionTag =
   | "Featured"
   | "";
 
-interface ProductSummary {
+export interface ProductSummary {
   _id: string;
   name: string;
   slug: string;
@@ -224,7 +224,7 @@ function Stars({ rating }: { rating: number }) {
 
 // ─── Product Detail Popup (centered modal) ────────────────────────────────────
 
-function ProductDetailModal({
+export function ProductDetailModal({
   product,
   onClose,
 }: {
@@ -677,7 +677,7 @@ function ProductDetailModal({
 
 // ─── Product Picker ───────────────────────────────────────────────────────────
 
-function ProductPicker({
+export function ProductPicker({
   selected,
   onChange,
   onViewProduct,
