@@ -1365,7 +1365,7 @@ function ShiprocketActionModal({
                   {
                     label: "Items",
                     value: `${order.items?.length
-                      } item(s), ₹${order.pricing.subtotal.toLocaleString(
+                      } item(s), ₹${order.pricing.total.toLocaleString(
                         "en-IN",
                       )}`,
                   },
