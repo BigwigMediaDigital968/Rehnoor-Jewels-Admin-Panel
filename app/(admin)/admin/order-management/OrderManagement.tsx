@@ -132,6 +132,8 @@ interface Order {
   shippedAt?: string;
   deliveredAt?: string;
   cancelledAt?: string;
+  isTrashed?: boolean;
+  trashedAt?: string | null;
   createdAt: string;
 }
 interface Pagination {
@@ -163,26 +165,32 @@ type Modal =
   | { type: "shiprocket_action"; order: Order }
   | { type: "refund"; order: Order }
   | { type: "confirm-delete"; id: string; orderNumber: string }
+  | { type: "confirm-trash"; id: string; orderNumber: string } // was "confirm-delete"
+  | { type: "trash-view" }
   | { type: "success"; message: string }
   | { type: "error"; message: string };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 function getToken() {
   return typeof window !== "undefined"
     ? localStorage.getItem("admin_token") || ""
     : "";
 }
+
 function authHeaders() {
   return {
     "Content-Type": "application/json",
     Authorization: `Bearer ${getToken()}`,
   };
 }
+
 function inr(n: number) {
   return `₹${n.toLocaleString("en-IN")}`;
 }
+
 function fmt(iso: string) {
   return new Date(iso).toLocaleDateString("en-IN", {
     day: "2-digit",
@@ -190,6 +198,7 @@ function fmt(iso: string) {
     year: "numeric",
   });
 }
+
 function fmtFull(iso: string) {
   return new Date(iso).toLocaleString("en-IN", {
     day: "2-digit",
@@ -198,6 +207,51 @@ function fmtFull(iso: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+async function trashOrder(id: string) {
+  const res = await fetch(`${API_BASE}/api/orders/admin/${id}/trash`, {
+    method: "PATCH",
+    headers: authHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to move order to trash");
+  return data;
+}
+
+async function restoreOrder(id: string) {
+  const res = await fetch(`${API_BASE}/api/orders/admin/${id}/restore`, {
+    method: "PATCH",
+    headers: authHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to restore order");
+  return data;
+}
+
+async function permanentlyDeleteOrder(id: string) {
+  const res = await fetch(`${API_BASE}/api/orders/admin/${id}/permanent`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok)
+    throw new Error(data.message || "Failed to permanently delete order");
+  return data;
+}
+
+async function fetchTrashedOrders(page = 1, limit = 15) {
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+  const res = await fetch(`${API_BASE}/api/orders/admin/trash?${params}`, {
+    headers: authHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok)
+    throw new Error(data.message || "Failed to fetch trashed orders");
+  return data as { data: Order[]; pagination: Pagination };
 }
 
 const ALL_STATUSES: OrderStatus[] = [
@@ -624,7 +678,8 @@ function RazorpayActionModal({
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Refund failed");
       onSuccess(
-        `Refund of ${inr(Number(refundAmount))} initiated for ${order.orderNumber
+        `Refund of ${inr(Number(refundAmount))} initiated for ${
+          order.orderNumber
         }.`,
       );
       onClose();
@@ -987,8 +1042,8 @@ function RazorpayActionModal({
                           {k === "amount"
                             ? inr(Number(v) / 100)
                             : k === "created_at"
-                              ? fmtFull(new Date(Number(v) * 1000).toISOString())
-                              : String(v)}
+                            ? fmtFull(new Date(Number(v) * 1000).toISOString())
+                            : String(v)}
                         </p>
                       </div>
                     ))}
@@ -1283,8 +1338,8 @@ function ShiprocketActionModal({
                     background: s.done
                       ? "#22c55e"
                       : tab === s.id
-                        ? "#166534"
-                        : "#E5E0D4",
+                      ? "#166534"
+                      : "#E5E0D4",
                     color: s.done || tab === s.id ? "#fff" : "#888",
                     display: "flex",
                     alignItems: "center",
@@ -1364,10 +1419,9 @@ function ShiprocketActionModal({
                   },
                   {
                     label: "Items",
-                    value: `${order.items?.length
-                      } item(s), ₹${order.pricing.total.toLocaleString(
-                        "en-IN",
-                      )}`,
+                    value: `${
+                      order.items?.length
+                    } item(s), ₹${order.pricing.total.toLocaleString("en-IN")}`,
                   },
                   {
                     label: "Payment mode",
@@ -2319,24 +2373,24 @@ function FeedbackModal({
   onConfirm: () => void;
   onClose: () => void;
 }) {
-  if (!["confirm-delete", "success", "error"].includes(modal.type)) return null;
+  if (!["confirm-trash", "success", "error"].includes(modal.type)) return null;
   const isSuccess = modal.type === "success";
   const isError = modal.type === "error";
-  const isConfirm = modal.type === "confirm-delete";
+  const isConfirm = modal.type === "confirm-trash";
   const accent = isSuccess ? "#2ecc71" : "#e74c3c";
   const icon = isSuccess ? "✓" : isError ? "⚠" : "🗑";
   const title = isSuccess
     ? "Done!"
     : isError
-      ? "Error"
-      : modal.type === "confirm-delete"
-        ? `Delete ${modal.orderNumber}?`
-        : "";
+    ? "Error"
+    : modal.type === "confirm-trash"
+    ? `Trash ${modal.orderNumber}?`
+    : "";
   const body = isSuccess
     ? modal.message
     : isError
-      ? modal.message
-      : "This will permanently delete the order. This cannot be undone.";
+    ? modal.message
+    : "This will permanently trash the order. This cannot be undone.";
   return (
     <ModalOverlay onClose={onClose} zIndex={1400}>
       <ModalCard maxWidth={420} accentColor={accent}>
@@ -2389,7 +2443,7 @@ function FeedbackModal({
                   onClick={onConfirm}
                   style={{ ...btnDanger, cursor: "pointer" }}
                 >
-                  Yes, delete
+                  Yes, trash
                 </button>
               </>
             ) : (
@@ -2406,6 +2460,7 @@ function FeedbackModal({
     </ModalOverlay>
   );
 }
+
 // ─── Order Detail Modal ───────────────────────────────────────────────────────
 
 function OrderDetailModal({
@@ -2417,7 +2472,7 @@ function OrderDetailModal({
   onNoteClick,
   onRazorpayClick,
   onShiprocketClick,
-  onDeleteClick,
+  onTrashClick,
 }: {
   order: Order;
   onClose: () => void;
@@ -2427,10 +2482,10 @@ function OrderDetailModal({
   onNoteClick?: () => void;
   onRazorpayClick?: () => void;
   onShiprocketClick?: () => void;
-  onDeleteClick?: () => void;
+  onTrashClick?: () => void;
 }) {
   const s = STATUS_CFG[order.status] || STATUS_CFG.pending;
-  console.log("data", order)
+  console.log("data", order);
   return (
     <ModalOverlay onClose={onClose} zIndex={1200}>
       <div
@@ -2662,54 +2717,59 @@ function OrderDetailModal({
             <InfoRow label="Email" value={order.customerEmail} mono />
             <InfoRow label="Phone" value={order.customerPhone} />
 
-            {
-              (order.customerNote || order.giftMessage) && (
-                <SectionHead>Shipping Notes</SectionHead>
-
-              )
-            }
-            {order.giftMessage &&
-              (
-                <div
-                  style={{
-                    background: "#F0FFF4",
-                    border: `1px solid #D1FAE5"
+            {(order.customerNote || order.giftMessage) && (
+              <SectionHead>Shipping Notes</SectionHead>
+            )}
+            {order.giftMessage && (
+              <div
+                style={{
+                  background: "#F0FFF4",
+                  border: `1px solid #D1FAE5"
                   }`,
-                    borderRadius: 10,
-                    padding: "12px 14px",
-                    marginBottom: 16,
-                  }}
+                  borderRadius: 10,
+                  padding: "12px 14px",
+                  marginBottom: 16,
+                }}
+              >
+                <p
+                  className="text-xs font-semibold pb-2"
+                  style={{ margin: 0, fontWeight: 600 }}
                 >
-                  <p className="text-xs font-semibold pb-2" style={{ margin: 0, fontWeight: 600 }}>
-                    🎁 Gift Note
-                  </p>
-                  <p className="text-xs text-gray-600 pl-1" style={{ margin: 0, fontWeight: 600 }}>
-                    {order.giftMessage}
-                  </p>
-                </div>
-              )
-            }
-            {order.customerNote &&
-              (
-                <div
-                  style={{
-                    background: "#F0FFF4",
-                    border: `1px solid #D1FAE5"
+                  🎁 Gift Note
+                </p>
+                <p
+                  className="text-xs text-gray-600 pl-1"
+                  style={{ margin: 0, fontWeight: 600 }}
+                >
+                  {order.giftMessage}
+                </p>
+              </div>
+            )}
+            {order.customerNote && (
+              <div
+                style={{
+                  background: "#F0FFF4",
+                  border: `1px solid #D1FAE5"
                   }`,
-                    borderRadius: 10,
-                    padding: "12px 14px",
-                    marginBottom: 16,
-                  }}
+                  borderRadius: 10,
+                  padding: "12px 14px",
+                  marginBottom: 16,
+                }}
+              >
+                <p
+                  className="text-xs font-semibold pb-2"
+                  style={{ margin: 0, fontWeight: 600 }}
                 >
-                  <p className="text-xs font-semibold pb-2" style={{ margin: 0, fontWeight: 600 }}>
-                    Note
-                  </p>
-                  <p className="text-xs text-gray-600 pl-1" style={{ margin: 0, fontWeight: 600 }}>
-                    {order.customerNote}
-                  </p>
-                </div>
-              )
-            }
+                  Note
+                </p>
+                <p
+                  className="text-xs text-gray-600 pl-1"
+                  style={{ margin: 0, fontWeight: 600 }}
+                >
+                  {order.customerNote}
+                </p>
+              </div>
+            )}
             <SectionHead>Shipping Address</SectionHead>
             <div style={{ fontSize: 13, color: "#444", lineHeight: 1.7 }}>
               <p style={{ margin: 0, fontWeight: 600 }}>
@@ -2740,8 +2800,9 @@ function OrderDetailModal({
             <div
               style={{
                 background: order.shipping?.awbCode ? "#F0FFF4" : "#FAFAF8",
-                border: `1px solid ${order.shipping?.awbCode ? "#D1FAE5" : "#E5E0D4"
-                  }`,
+                border: `1px solid ${
+                  order.shipping?.awbCode ? "#D1FAE5" : "#E5E0D4"
+                }`,
                 borderRadius: 10,
                 padding: "12px 14px",
                 marginBottom: 16,
@@ -2839,10 +2900,11 @@ function OrderDetailModal({
                   order.payment.method === "cod"
                     ? "#FDFAF4"
                     : order.payment.status === "paid"
-                      ? "#F0FFF4"
-                      : "#F8FAFF",
-                border: `1px solid ${order.payment.status === "paid" ? "#D1FAE5" : "#E5EEF8"
-                  }`,
+                    ? "#F0FFF4"
+                    : "#F8FAFF",
+                border: `1px solid ${
+                  order.payment.status === "paid" ? "#D1FAE5" : "#E5EEF8"
+                }`,
                 borderRadius: 10,
                 padding: "12px 14px",
                 marginBottom: 16,
@@ -2913,11 +2975,11 @@ function OrderDetailModal({
                   },
                   ...(order.payment.paidAt
                     ? [
-                      {
-                        label: "Paid At",
-                        value: fmtFull(order.payment.paidAt),
-                      },
-                    ]
+                        {
+                          label: "Paid At",
+                          value: fmtFull(order.payment.paidAt),
+                        },
+                      ]
                     : []),
                   ...(order.payment.refundId
                     ? [{ label: "Refund ID", value: order.payment.refundId }]
@@ -3100,7 +3162,6 @@ function OrderDetailModal({
                         {item?.variant?.title}
                       </p>
                     )}
-
                   </div>
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
                     <p
@@ -3144,11 +3205,11 @@ function OrderDetailModal({
                 },
                 ...(order.pricing.discountAmount
                   ? [
-                    {
-                      label: "Discount",
-                      value: `-${inr(order.pricing.discountAmount)}`,
-                    },
-                  ]
+                      {
+                        label: "Discount",
+                        value: `-${inr(order.pricing.discountAmount)}`,
+                      },
+                    ]
                   : []),
                 ...(order.pricing.taxAmount
                   ? [{ label: "Tax/GST", value: inr(order.pricing.taxAmount) }]
@@ -3280,7 +3341,7 @@ function OrderDetailModal({
               }}
             >
               <button
-                onClick={onDeleteClick}
+                onClick={onTrashClick}
                 style={{
                   fontSize: 12,
                   color: "#c0392b",
@@ -3292,7 +3353,7 @@ function OrderDetailModal({
                   fontWeight: 500,
                 }}
               >
-                🗑 Delete Order
+                🗑 Trash Order
               </button>
             </div>
           </div>
@@ -3328,13 +3389,13 @@ function InfoRow({
   value,
   mono,
   compact,
-  className
+  className,
 }: {
   label: string;
   value: string;
   mono?: boolean;
   compact?: boolean;
-  className?: string
+  className?: string;
 }) {
   return (
     <div className={className} style={{ marginBottom: compact ? 6 : 10 }}>
@@ -3525,6 +3586,405 @@ function StatsBar({
   );
 }
 
+function TrashPanel({
+  onClose,
+  onOrderRestored,
+}: {
+  onClose: () => void;
+  onOrderRestored?: () => void; // call this to refresh the main active-orders table
+}) {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [banner, setBanner] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+  const [confirmPermanent, setConfirmPermanent] = useState<{
+    id: string;
+    orderNumber: string;
+  } | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await fetchTrashedOrders(page, 15);
+      setOrders(data.data || []);
+      setPagination(data.pagination || null);
+    } catch (e: unknown) {
+      setBanner({
+        type: "error",
+        message: e instanceof Error ? e.message : "Failed to load trash",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [page]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const daysLeft = (trashedAt?: string | null) => {
+    if (!trashedAt) return 30;
+    const elapsedDays =
+      (Date.now() - new Date(trashedAt).getTime()) / (1000 * 60 * 60 * 24);
+    return Math.max(0, Math.ceil(30 - elapsedDays));
+  };
+
+  const handleRestore = async (order: Order) => {
+    setBusyId(order._id);
+    try {
+      await restoreOrder(order._id);
+      setOrders((prev) => prev.filter((o) => o._id !== order._id));
+      setBanner({
+        type: "success",
+        message: `${order.orderNumber} restored to active orders.`,
+      });
+      onOrderRestored?.();
+    } catch (e: unknown) {
+      setBanner({
+        type: "error",
+        message: e instanceof Error ? e.message : "Restore failed",
+      });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handlePermanentDelete = async () => {
+    if (!confirmPermanent) return;
+    const { id, orderNumber } = confirmPermanent;
+    setConfirmPermanent(null);
+    setBusyId(id);
+    try {
+      await permanentlyDeleteOrder(id);
+      setOrders((prev) => prev.filter((o) => o._id !== id));
+      setBanner({
+        type: "success",
+        message: `${orderNumber} permanently deleted.`,
+      });
+    } catch (e: unknown) {
+      setBanner({
+        type: "error",
+        message: e instanceof Error ? e.message : "Delete failed",
+      });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <>
+      <ModalOverlay onClose={onClose} zIndex={1250}>
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 880,
+            background: "#fff",
+            borderRadius: 18,
+            overflow: "hidden",
+            boxShadow: "0 32px 80px rgba(0,0,0,0.28)",
+            margin: "auto",
+            maxHeight: "88vh",
+            display: "flex",
+            flexDirection: "column",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div
+            style={{
+              height: 3,
+              background: "linear-gradient(90deg,#e74c3c,#f0a500)",
+            }}
+          />
+          <ModalHeader
+            title="Trash"
+            subtitle="Deleted orders — auto-purged after 30 days"
+            onClose={onClose}
+          />
+
+          {banner && (
+            <div
+              style={{
+                margin: "12px 24px 0",
+                padding: "10px 14px",
+                borderRadius: 8,
+                fontSize: 12,
+                background: banner.type === "success" ? "#EDFAF3" : "#FFF0F0",
+                border: `1px solid ${
+                  banner.type === "success" ? "#2ecc7130" : "#FFCDD2"
+                }`,
+                color: banner.type === "success" ? "#1a7a4a" : "#c0392b",
+                display: "flex",
+                justifyContent: "space-between",
+              }}
+            >
+              <span>{banner.message}</span>
+              <button
+                onClick={() => setBanner(null)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "inherit",
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          <div style={{ padding: "16px 24px", overflowY: "auto", flex: 1 }}>
+            {loading ? (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  padding: 48,
+                }}
+              >
+                <Spinner />
+              </div>
+            ) : orders.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 48, color: "#bbb" }}>
+                <div style={{ fontSize: 36, marginBottom: 10 }}>🗑</div>
+                Trash is empty
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {orders.map((order) => {
+                  const left = daysLeft(order.trashedAt);
+                  const isBusy = busyId === order._id;
+                  return (
+                    <div
+                      key={order._id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 14,
+                        padding: "12px 14px",
+                        background: "#FAFAF8",
+                        border: "1px solid #EEEAE0",
+                        borderRadius: 10,
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 700,
+                              color: "#003720",
+                              fontFamily: "monospace",
+                            }}
+                          >
+                            {order.orderNumber}
+                          </span>
+                          <StatusBadge status={order.status} />
+                          <span
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              color: left <= 3 ? "#c0392b" : "#a06800",
+                              background: left <= 3 ? "#FFF0F0" : "#FFF8E6",
+                              border: `1px solid ${
+                                left <= 3 ? "#FFCDD2" : "#f0a50030"
+                              }`,
+                              padding: "2px 8px",
+                              borderRadius: 10,
+                            }}
+                          >
+                            {left} day{left !== 1 ? "s" : ""} left
+                          </span>
+                        </div>
+                        <p
+                          style={{
+                            fontSize: 12,
+                            color: "#666",
+                            margin: "4px 0 0",
+                          }}
+                        >
+                          {order.customerName} · {inr(order.pricing.total)}
+                        </p>
+                        <p
+                          style={{
+                            fontSize: 10,
+                            color: "#aaa",
+                            margin: "2px 0 0",
+                          }}
+                        >
+                          Trashed{" "}
+                          {order.trashedAt ? fmtFull(order.trashedAt) : "—"}
+                        </p>
+                      </div>
+                      <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                        <button
+                          onClick={() => handleRestore(order)}
+                          disabled={isBusy}
+                          style={{
+                            ...actionBtn,
+                            padding: "7px 14px",
+                            background: "#F0FFF4",
+                            color: "#166534",
+                            border: "1px solid #D1FAE5",
+                            cursor: isBusy ? "wait" : "pointer",
+                            opacity: isBusy ? 0.6 : 1,
+                          }}
+                        >
+                          ↺ Restore
+                        </button>
+                        <button
+                          onClick={() =>
+                            setConfirmPermanent({
+                              id: order._id,
+                              orderNumber: order.orderNumber,
+                            })
+                          }
+                          disabled={isBusy}
+                          style={{
+                            ...actionBtn,
+                            padding: "7px 14px",
+                            background: "#FFF5F5",
+                            color: "#c0392b",
+                            border: "1px solid #FFCDD2",
+                            cursor: isBusy ? "wait" : "pointer",
+                            opacity: isBusy ? 0.6 : 1,
+                          }}
+                        >
+                          Delete Forever
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {pagination && pagination.totalPages > 1 && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 16,
+                padding: "12px 24px",
+                borderTop: "1px solid #F0EBE0",
+              }}
+            >
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                style={{
+                  ...btnOutline,
+                  opacity: page === 1 ? 0.5 : 1,
+                  cursor: page === 1 ? "not-allowed" : "pointer",
+                }}
+              >
+                ← Prev
+              </button>
+              <span style={{ color: "#888", fontSize: 12 }}>
+                Page {pagination.page} of {pagination.totalPages}
+              </span>
+              <button
+                onClick={() =>
+                  setPage((p) => Math.min(pagination.totalPages, p + 1))
+                }
+                disabled={page === pagination.totalPages}
+                style={{
+                  ...btnOutline,
+                  opacity: page === pagination.totalPages ? 0.5 : 1,
+                  cursor:
+                    page === pagination.totalPages ? "not-allowed" : "pointer",
+                }}
+              >
+                Next →
+              </button>
+            </div>
+          )}
+        </div>
+      </ModalOverlay>
+
+      {confirmPermanent && (
+        <ModalOverlay onClose={() => setConfirmPermanent(null)} zIndex={1450}>
+          <ModalCard maxWidth={400} accentColor="#e74c3c">
+            <div style={{ padding: "28px 24px", textAlign: "center" }}>
+              <div
+                style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: "50%",
+                  background: "#FFF0F0",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  margin: "0 auto 14px",
+                  fontSize: 20,
+                  color: "#c0392b",
+                }}
+              >
+                ⚠
+              </div>
+              <h3
+                style={{
+                  fontSize: 16,
+                  fontWeight: 700,
+                  color: "#1a1a1a",
+                  margin: "0 0 8px",
+                }}
+              >
+                Permanently delete {confirmPermanent.orderNumber}?
+              </h3>
+              <p
+                style={{
+                  fontSize: 12,
+                  color: "#777",
+                  lineHeight: 1.6,
+                  margin: 0,
+                }}
+              >
+                This cannot be undone. The order and all its data will be
+                removed forever.
+              </p>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  justifyContent: "center",
+                  marginTop: 20,
+                }}
+              >
+                <button
+                  onClick={() => setConfirmPermanent(null)}
+                  style={btnOutline}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handlePermanentDelete}
+                  style={{ ...btnDanger, cursor: "pointer" }}
+                >
+                  Delete Forever
+                </button>
+              </div>
+            </div>
+          </ModalCard>
+        </ModalOverlay>
+      )}
+    </>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function OrderManagement() {
@@ -3624,33 +4084,48 @@ export default function OrderManagement() {
     }
   };
 
-  const executeDelete = async () => {
-    if (modal.type !== "confirm-delete") return;
+  // const executeDelete = async () => {
+  //   if (modal.type !== "confirm-delete") return;
+  //   const { id } = modal;
+  //   setModal({ type: "none" });
+  //   try {
+  //     const res = await fetch(`${API_BASE}/api/orders/admin/${id}`, {
+  //       method: "DELETE",
+  //       headers: authHeaders(),
+  //     });
+  //     const data = await res.json();
+  //     if (!res.ok) throw new Error(data.message);
+  //     setOrders((prev) => prev.filter((o) => o._id !== id));
+  //     setModal({ type: "success", message: "Order deleted successfully." });
+  //   } catch (e: unknown) {
+  //     setModal({
+  //       type: "error",
+  //       message: e instanceof Error ? e.message : "Delete failed",
+  //     });
+  //   }
+  // };
+
+  const executeTrash = async () => {
+    if (modal.type !== "confirm-trash") return;
     const { id } = modal;
     setModal({ type: "none" });
     try {
-      const res = await fetch(`${API_BASE}/api/orders/admin/${id}`, {
-        method: "DELETE",
-        headers: authHeaders(),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
+      await trashOrder(id);
       setOrders((prev) => prev.filter((o) => o._id !== id));
-      setModal({ type: "success", message: "Order deleted successfully." });
+      setModal({
+        type: "success",
+        message: "Order moved to trash. Restorable for 30 days.",
+      });
     } catch (e: unknown) {
       setModal({
         type: "error",
-        message: e instanceof Error ? e.message : "Delete failed",
+        message: e instanceof Error ? e.message : "Failed to move to trash",
       });
     }
   };
 
   // const viewOrder = modal.type === "view" ? modal.order : null;
-  // const viewOrder = modal.type === "view" ? modal.order : null;
-  const viewOrder =
-    "order" in modal
-      ? modal.order
-      : null;
+  const viewOrder = "order" in modal ? modal.order : null;
 
   const hasActiveFilters = !!(
     search ||
@@ -3674,9 +4149,17 @@ export default function OrderManagement() {
       {/* ── Modals ── */}
       <FeedbackModal
         modal={modal}
-        onConfirm={executeDelete}
+        // onConfirm={executeDelete}
+        onConfirm={executeTrash}
         onClose={() => setModal({ type: "none" })}
       />
+
+      {modal.type === "trash-view" && (
+        <TrashPanel
+          onClose={() => setModal({ type: "none" })}
+          onOrderRestored={fetchOrders}
+        />
+      )}
 
       {modal.type === "view" && viewOrder && (
         <OrderDetailModal
@@ -3694,9 +4177,9 @@ export default function OrderManagement() {
           onShiprocketClick={() =>
             setModal({ type: "shiprocket_action", order: viewOrder })
           }
-          onDeleteClick={() =>
+          onTrashClick={() =>
             setModal({
-              type: "confirm-delete",
+              type: "confirm-trash",
               id: viewOrder._id,
               orderNumber: viewOrder.orderNumber,
             })
@@ -3708,7 +4191,9 @@ export default function OrderManagement() {
         <StatusModal
           order={modal.order}
           // onClose={() => setModal({ type: "none" })}
-          onClose={() => { viewOrder ? openDetail(viewOrder?._id) : setModal({ type: "none" }) }}
+          onClose={() => {
+            viewOrder ? openDetail(viewOrder?._id) : setModal({ type: "none" });
+          }}
           onSuccess={(m) => {
             setModal({ type: "success", message: m });
             fetchOrders();
@@ -3720,7 +4205,9 @@ export default function OrderManagement() {
         <ShippingModal
           order={modal.order}
           // onClose={() => setModal({ type: "none" })}
-          onClose={() => { viewOrder ? openDetail(viewOrder?._id) : setModal({ type: "none" }) }}
+          onClose={() => {
+            viewOrder ? openDetail(viewOrder?._id) : setModal({ type: "none" });
+          }}
           onSuccess={(m) => {
             setModal({ type: "success", message: m });
             fetchOrders();
@@ -3732,8 +4219,9 @@ export default function OrderManagement() {
         <PaymentModal
           order={modal.order}
           // onClose={() => setModal({ type: "none" })}
-          onClose={() => { viewOrder ? openDetail(viewOrder?._id) : setModal({ type: "none" }) }}
-
+          onClose={() => {
+            viewOrder ? openDetail(viewOrder?._id) : setModal({ type: "none" });
+          }}
           onSuccess={(m) => {
             setModal({ type: "success", message: m });
             fetchOrders();
@@ -3745,7 +4233,9 @@ export default function OrderManagement() {
         <NoteModal
           order={modal.order}
           // onClose={() => setModal({ type: "none" })}
-          onClose={() => { viewOrder ? openDetail(viewOrder?._id) : setModal({ type: "none" }) }}
+          onClose={() => {
+            viewOrder ? openDetail(viewOrder?._id) : setModal({ type: "none" });
+          }}
           onSuccess={(m) => {
             setModal({ type: "success", message: m });
             fetchOrders();
@@ -3768,8 +4258,9 @@ export default function OrderManagement() {
         <ShiprocketActionModal
           order={modal.order}
           // onClose={() => setModal({ type: "none" })}
-          onClose={() => { viewOrder ? openDetail(viewOrder?._id) : setModal({ type: "none" }) }}
-
+          onClose={() => {
+            viewOrder ? openDetail(viewOrder?._id) : setModal({ type: "none" });
+          }}
           onSuccess={(m) => {
             setModal({ type: "success", message: m });
             fetchOrders();
@@ -3808,18 +4299,33 @@ export default function OrderManagement() {
                 : "Manage all customer orders"}
             </p>
           </div>
-          <button
-            onClick={fetchOrders}
-            style={{
-              ...btnOutline,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              cursor: "pointer",
-            }}
-          >
-            ↻ Refresh
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={fetchOrders}
+              style={{
+                ...btnOutline,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                cursor: "pointer",
+              }}
+            >
+              ↻ Refresh
+            </button>
+
+            <button
+              onClick={() => setModal({ type: "trash-view" })}
+              style={{
+                ...btnOutline,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                cursor: "pointer",
+              }}
+            >
+              🗑 Trashed Orders
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -3957,8 +4463,8 @@ export default function OrderManagement() {
                 v === "true"
                   ? "⚡ Priority"
                   : v === "false"
-                    ? "Normal"
-                    : "Priority",
+                  ? "Normal"
+                  : "Priority",
             },
           ].map((filter, idx) => (
             <div key={idx} className="relative">
@@ -4418,7 +4924,7 @@ export default function OrderManagement() {
                           <button
                             onClick={() =>
                               setModal({
-                                type: "confirm-delete",
+                                type: "confirm-trash",
                                 id: order._id,
                                 orderNumber: order.orderNumber,
                               })
@@ -4431,7 +4937,7 @@ export default function OrderManagement() {
                               cursor: "pointer",
                             }}
                           >
-                            Del
+                            Trash
                           </button>
                         </div>
                       </td>
