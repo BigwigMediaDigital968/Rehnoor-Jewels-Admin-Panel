@@ -4084,27 +4084,6 @@ export default function OrderManagement() {
     }
   };
 
-  // const executeDelete = async () => {
-  //   if (modal.type !== "confirm-delete") return;
-  //   const { id } = modal;
-  //   setModal({ type: "none" });
-  //   try {
-  //     const res = await fetch(`${API_BASE}/api/orders/admin/${id}`, {
-  //       method: "DELETE",
-  //       headers: authHeaders(),
-  //     });
-  //     const data = await res.json();
-  //     if (!res.ok) throw new Error(data.message);
-  //     setOrders((prev) => prev.filter((o) => o._id !== id));
-  //     setModal({ type: "success", message: "Order deleted successfully." });
-  //   } catch (e: unknown) {
-  //     setModal({
-  //       type: "error",
-  //       message: e instanceof Error ? e.message : "Delete failed",
-  //     });
-  //   }
-  // };
-
   const executeTrash = async () => {
     if (modal.type !== "confirm-trash") return;
     const { id } = modal;
