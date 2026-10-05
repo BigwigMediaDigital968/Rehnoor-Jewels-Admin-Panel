@@ -3102,6 +3102,7 @@ function OrderDetailModal({
                       <img
                         src={item.image}
                         alt={item.name}
+                        onError={(e) => (e.currentTarget.style.display = "none")}
                         style={{
                           width: "100%",
                           height: "100%",
@@ -4677,6 +4678,9 @@ export default function OrderManagement() {
                                 <img
                                   src={item.image}
                                   alt=""
+                                  onError={(e) =>
+                                    (e.currentTarget.style.display = "none")
+                                  }
                                   style={{
                                     width: "100%",
                                     height: "100%",
