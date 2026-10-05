@@ -1119,7 +1119,9 @@ function ShiprocketActionModal({
   onSuccess: (m: string) => void;
   onError: (m: string) => void;
 }) {
-  const [tab, setTab] = useState<"push" | "awb" | "pickup" | "track">("push");
+  const [tab, setTab] = useState<"push" | "awb" | "pickup" | "track">(
+    order.shipping?.carrierId ? "awb" : "push",
+  );
   const [shipmentId, setShipmentId] = useState(order.shipping?.carrierId || "");
   const [courierId, setCourierId] = useState("");
   const [trackData, setTrackData] = useState<Record<string, unknown> | null>(
@@ -1454,11 +1456,11 @@ function ShiprocketActionModal({
                     color: "#a06800",
                   }}
                 >
-                  ⚠ This order already has Shipment ID{" "}
+                  ✓ Already pushed to Shiprocket — Shipment ID{" "}
                   <code style={{ fontFamily: "monospace" }}>
                     {order.shipping.carrierId}
                   </code>
-                  . Re-pushing will create a duplicate.
+                  . Continue with Generate AWB.
                 </div>
               )}
             </div>
@@ -1717,7 +1719,7 @@ function ShiprocketActionModal({
           <button onClick={onClose} style={btnOutline}>
             Close
           </button>
-          {tab === "push" && (
+          {tab === "push" && !hasCarierId && (
             <button
               onClick={pushToShiprocket}
               disabled={loading}
