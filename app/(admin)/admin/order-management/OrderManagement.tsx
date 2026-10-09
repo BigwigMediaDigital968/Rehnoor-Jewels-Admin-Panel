@@ -4070,6 +4070,20 @@ export default function OrderManagement() {
     fetchOrders();
   }, [fetchOrders]);
 
+  // Pull cancellations / pickups / deliveries made in Shiprocket, then refresh
+  useEffect(() => {
+    fetch(`${API_BASE}/api/shipping/admin/sync`, {
+      method: "POST",
+      headers: authHeaders(),
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.updated > 0) fetchOrders();
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
