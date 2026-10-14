@@ -270,6 +270,29 @@ export default function AdminProductsPage() {
     });
   };
 
+  // ─── Bulk duplicate ──────────────────────────────────────────────
+  const [duplicating, setDuplicating] = useState(false);
+  const handleBulkDuplicate = async () => {
+    if (selectedIds.size === 0 || duplicating) return;
+    setDuplicating(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/products/admin/duplicate`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      setSelectedIds(new Set());
+      showFeedback("success", data.message);
+      await fetchProducts();
+    } catch (err: unknown) {
+      showFeedback("error", err instanceof Error ? err.message : "Failed");
+    } finally {
+      setDuplicating(false);
+    }
+  };
+
   // ─── Assign collection ────────────────────────────────────────────
   const handleAssignCollection = async (collectionId: string) => {
     if (!collectionTarget) return;
@@ -461,6 +484,13 @@ export default function AdminProductsPage() {
               className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-medium transition-colors cursor-pointer"
             >
               Delete selected
+            </button>
+            <button
+              onClick={handleBulkDuplicate}
+              disabled={duplicating}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-lg text-xs font-medium transition-colors cursor-pointer"
+            >
+              {duplicating ? "Duplicating…" : "Duplicate selected"}
             </button>
             <button
               onClick={() => setSelectedIds(new Set())}
