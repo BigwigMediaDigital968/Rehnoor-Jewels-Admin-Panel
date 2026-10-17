@@ -110,10 +110,15 @@ interface Order {
     subtotal: number;
     shippingCharge: number;
     discountAmount: number;
+    prepaidDiscount?: number;
     taxAmount: number;
     total: number;
     currency: string;
   };
+  coupon?: {
+    code?: string;
+    discountAmount?: number;
+  } | null;
   payment: Payment;
   shipping: Shipping;
   status: OrderStatus;
@@ -3206,14 +3211,41 @@ function OrderDetailModal({
                       ? "Free"
                       : inr(order.pricing.shippingCharge),
                 },
-                ...(order.pricing.discountAmount
-                  ? [
-                      {
-                        label: "Discount",
-                        value: `-${inr(order.pricing.discountAmount)}`,
-                      },
-                    ]
-                  : []),
+                ...(() => {
+                  const total = order.pricing.discountAmount || 0;
+                  if (!total) return [];
+                  const prepaid = order.pricing.prepaidDiscount || 0;
+                  const couponAmt = order.coupon?.code
+                    ? Math.min(
+                        order.coupon.discountAmount || total - prepaid,
+                        total,
+                      )
+                    : 0;
+                  const other = Math.max(0, total - prepaid - couponAmt);
+                  const rows: { label: string; value: string }[] = [];
+                  if (couponAmt)
+                    rows.push({
+                      label: `Coupon (${order.coupon?.code})`,
+                      value: `-${inr(couponAmt)}`,
+                    });
+                  if (prepaid)
+                    rows.push({
+                      label: "Prepaid discount",
+                      value: `-${inr(prepaid)}`,
+                    });
+                  if (other)
+                    rows.push({
+                      label: "Discount",
+                      value: `-${inr(other)}`,
+                    });
+                  // Show the combined line only when several discounts apply
+                  if (rows.length > 1)
+                    rows.push({
+                      label: "Total discount",
+                      value: `-${inr(total)}`,
+                    });
+                  return rows;
+                })(),
                 ...(order.pricing.taxAmount
                   ? [{ label: "Tax/GST", value: inr(order.pricing.taxAmount) }]
                   : []),
