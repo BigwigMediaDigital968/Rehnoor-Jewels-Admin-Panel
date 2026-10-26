@@ -3455,12 +3455,21 @@ function InfoRow({
 function StatsBar({
   stats,
   period,
+  filtered,
   onPeriodChange,
 }: {
   stats: Stats | null;
   period: string;
+  filtered: boolean;
   onPeriodChange: (p: string) => void;
 }) {
+  const periodLabels: Record<string, string> = {
+    "7d": "last 7 days",
+    "30d": "last 30 days",
+    "90d": "last 90 days",
+  };
+  const periodLabel = periodLabels[period] || "all time";
+  const scope = filtered ? `${periodLabel}, filtered` : periodLabel;
   return (
     <div
       style={{
@@ -3474,25 +3483,25 @@ function StatsBar({
         {
           label: "Total Orders",
           value: stats?.totalOrders?.toLocaleString() || "—",
-          sub: `all time`,
+          sub: scope,
           icon: "📦",
         },
         {
-          label: `Revenue (${period})`,
+          label: "Revenue",
           value: stats ? inr(stats.period.revenue) : "—",
-          sub: `${stats?.period.orders || 0} orders`,
+          sub: `${stats?.period.orders || 0} orders · ${periodLabel}`,
           icon: "💰",
         },
         {
           label: "Avg Order",
           value: stats ? inr(stats.period.avgOrderValue) : "—",
-          sub: "this period",
+          sub: scope,
           icon: "📊",
         },
         {
           label: "Delivered",
           value: stats?.byStatus?.delivered?.toString() || "0",
-          sub: "all time",
+          sub: scope,
           icon: "✅",
         },
       ].map(({ label, value, sub, icon }) => (
@@ -3556,6 +3565,7 @@ function StatsBar({
           ["7d", "7 days"],
           ["30d", "30 days"],
           ["90d", "90 days"],
+          ["all", "All time"],
         ].map(([val, lbl]) => (
           <button
             key={val}
@@ -3584,16 +3594,7 @@ function StatsBar({
               alignItems: "center",
             }}
           >
-            {(
-              [
-                "pending",
-                "confirmed",
-                "processing",
-                "shipped",
-                "delivered",
-                "cancelled",
-              ] as OrderStatus[]
-            ).map((s) => {
+            {ALL_STATUSES.map((s) => {
               const c = STATUS_CFG[s];
               const count = stats.byStatus[s] || 0;
               if (!count) return null;
@@ -4040,67 +4041,86 @@ export default function OrderManagement() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [page, setPage] = useState(1);
-  const [period, setPeriod] = useState("30d");
+  const [period, setPeriod] = useState("all");
+
+
+  const buildFilterParams = useCallback(() => {
+  const params = new URLSearchParams();
+  if (search) params.set("search", search);
+  if (filterStatus) params.set("status", filterStatus);
+  if (filterPaymentStatus) params.set("paymentStatus", filterPaymentStatus);
+  if (filterPaymentMethod) params.set("paymentMethod", filterPaymentMethod);
+  if (filterSource) params.set("source", filterSource);
+  if (filterPriority) params.set("isPriority", filterPriority);
+  if (startDate) params.set("startDate", startDate);
+  if (endDate) params.set("endDate", endDate);
+  if (period !== "all") params.set("period", period);
+  return params;
+}, [
+  period,
+  search,
+  filterStatus,
+  filterPaymentStatus,
+  filterPaymentMethod,
+  filterSource,
+  filterPriority,
+  startDate,
+  endDate,
+]);
 
   const fetchOrders = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const params = new URLSearchParams();
-      if (search) params.set("search", search);
-      if (filterStatus) params.set("status", filterStatus);
-      if (filterPaymentStatus) params.set("paymentStatus", filterPaymentStatus);
-      if (filterPaymentMethod) params.set("paymentMethod", filterPaymentMethod);
-      if (filterSource) params.set("source", filterSource);
-      if (filterPriority) params.set("isPriority", filterPriority);
-      if (startDate) params.set("startDate", startDate);
-      if (endDate) params.set("endDate", endDate);
-      params.set("page", String(page));
-      params.set("limit", "15");
-      const res = await fetch(`${API_BASE}/api/orders/admin/all?${params}`, {
-        headers: authHeaders(),
-      });
-      const data = await res.json();
-      console.log("orders", data.data);
-      if (!res.ok) throw new Error(data.message || "Failed");
-      setOrders(data.data);
-      setPagination(data.pagination);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    search,
-    filterStatus,
-    filterPaymentStatus,
-    filterPaymentMethod,
-    filterSource,
-    filterPriority,
-    startDate,
-    endDate,
-    page,
-  ]);
+  setLoading(true);
+  setError("");
+  
+  const params = buildFilterParams();
+  params.set("page", String(page));
+  params.set("limit", "15");
+
+  try {
+    const res = await fetch(`${API_BASE}/api/orders/admin/all?${params}`, {
+      headers: authHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Failed to load orders");
+    setOrders(data.data);
+    setPagination(data.pagination);
+  } catch (e: unknown) {
+    setError(e instanceof Error ? e.message : "Something went wrong");
+  } finally {
+    setLoading(false);
+  }
+}, [buildFilterParams, page]);
 
   const fetchStats = useCallback(async () => {
-    setStatsLoading(true);
-    try {
-      const res = await fetch(
-        `${API_BASE}/api/orders/admin/stats?period=${period}`,
-        { headers: authHeaders() },
-      );
-      const data = await res.json();
-      if (data.success) setStats(data.data);
-    } catch {
-      /* non-fatal */
-    } finally {
-      setStatsLoading(false);
+  setStatsLoading(true);
+
+  const params = buildFilterParams();
+
+  try {
+    const res = await fetch(`${API_BASE}/api/orders/admin/stats?${params}`, {
+      headers: authHeaders(),
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      setStats(data.data);
     }
-  }, [period]);
+  } catch {
+    /* non-fatal, keep old stats or show skeleton */
+  } finally {
+    setStatsLoading(false);
+  }
+}, [buildFilterParams]);
+
+  // Re-fetch both after any change to an order so the stats stay in sync
+  const refreshAll = useCallback(() => {
+    fetchOrders();
+    fetchStats();
+  }, [fetchOrders, fetchStats]);
 
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
 
   // Pull cancellations / pickups / deliveries made in Shiprocket, then refresh
   useEffect(() => {
@@ -4110,7 +4130,7 @@ export default function OrderManagement() {
     })
       .then((r) => r.json())
       .then((d) => {
-        if (d?.updated > 0) fetchOrders();
+        if (d?.updated > 0) refreshAll();
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -4140,6 +4160,7 @@ export default function OrderManagement() {
     try {
       await trashOrder(id);
       setOrders((prev) => prev.filter((o) => o._id !== id));
+      fetchStats();
       setModal({
         type: "success",
         message: "Order moved to trash. Restorable for 30 days.",
@@ -4185,7 +4206,7 @@ export default function OrderManagement() {
       {modal.type === "trash-view" && (
         <TrashPanel
           onClose={() => setModal({ type: "none" })}
-          onOrderRestored={fetchOrders}
+          onOrderRestored={refreshAll}
         />
       )}
 
@@ -4224,7 +4245,7 @@ export default function OrderManagement() {
           }}
           onSuccess={(m) => {
             setModal({ type: "success", message: m });
-            fetchOrders();
+            refreshAll();
           }}
           onError={(m) => setModal({ type: "error", message: m })}
         />
@@ -4238,7 +4259,7 @@ export default function OrderManagement() {
           }}
           onSuccess={(m) => {
             setModal({ type: "success", message: m });
-            fetchOrders();
+            refreshAll();
           }}
           onError={(m) => setModal({ type: "error", message: m })}
         />
@@ -4252,7 +4273,7 @@ export default function OrderManagement() {
           }}
           onSuccess={(m) => {
             setModal({ type: "success", message: m });
-            fetchOrders();
+            refreshAll();
           }}
           onError={(m) => setModal({ type: "error", message: m })}
         />
@@ -4266,7 +4287,7 @@ export default function OrderManagement() {
           }}
           onSuccess={(m) => {
             setModal({ type: "success", message: m });
-            fetchOrders();
+            refreshAll();
           }}
           onError={(m) => setModal({ type: "error", message: m })}
         />
@@ -4277,7 +4298,7 @@ export default function OrderManagement() {
           onClose={() => setModal({ type: "none" })}
           onSuccess={(m) => {
             setModal({ type: "success", message: m });
-            fetchOrders();
+            refreshAll();
           }}
           onError={(m) => setModal({ type: "error", message: m })}
         />
@@ -4291,7 +4312,7 @@ export default function OrderManagement() {
           }}
           onSuccess={(m) => {
             setModal({ type: "success", message: m });
-            fetchOrders();
+            refreshAll();
           }}
           onError={(m) => setModal({ type: "error", message: m })}
         />
@@ -4368,7 +4389,15 @@ export default function OrderManagement() {
             <Spinner />
           </div>
         ) : (
-          <StatsBar stats={stats} period={period} onPeriodChange={setPeriod} />
+          <StatsBar
+            stats={stats}
+            period={period}
+            filtered={hasActiveFilters}
+            onPeriodChange={(p) => {
+              setPeriod(p);
+              setPage(1);
+            }}
+          />
         )}
 
         {/* Error */}
