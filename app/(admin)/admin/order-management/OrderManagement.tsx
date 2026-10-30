@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -3466,11 +3466,13 @@ function StatsBar({
   stats,
   period,
   filtered,
+  rangeLabel,
   onPeriodChange,
 }: {
   stats: Stats | null;
   period: string;
   filtered: boolean;
+  rangeLabel?: string;
   onPeriodChange: (p: string) => void;
 }) {
   const periodLabels: Record<string, string> = {
@@ -3478,7 +3480,8 @@ function StatsBar({
     "30d": "last 30 days",
     "90d": "last 90 days",
   };
-  const periodLabel = periodLabels[period] || "all time";
+  const periodLabel = rangeLabel || periodLabels[period] || "all time";
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
   const scope = filtered ? `${periodLabel}, filtered` : periodLabel;
 
   return (
@@ -3506,9 +3509,10 @@ function StatsBar({
             value: stats
               ? inr(stats.netRevenue?.total ?? stats.period?.netRevenue ?? 0)
               : "—",
-            sub: `${
-              stats?.netRevenue?.paidOrders || 0
-            } paid orders · ${periodLabel}`,
+            sub: `${plural(
+              stats?.netRevenue?.paidOrders || 0,
+              "paid order",
+            )} · ${periodLabel}`,
             icon: "💰",
             color: "#166534",
             bgHighlight: "#F0FFF4",
@@ -3524,7 +3528,10 @@ function StatsBar({
                     0,
                 )
               : "—",
-            sub: `${stats?.totalOrders || 0} total orders · ${periodLabel}`,
+            sub: `${plural(
+              stats?.grossRevenue?.paidOrders ?? stats?.totalOrders ?? 0,
+              "counted order",
+            )} · ${periodLabel}`,
             icon: "📊",
             color: "#1a1a1a",
           },
@@ -4042,6 +4049,8 @@ export default function OrderManagement() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  // Open leftwards only when the 288px popover wouldn't fit on the right
+  const [datePickerAlignRight, setDatePickerAlignRight] = useState(false);
 
   const [page, setPage] = useState(1);
 
@@ -4088,8 +4097,11 @@ export default function OrderManagement() {
     if (filterPaymentMethod) params.set("paymentMethod", filterPaymentMethod);
     if (filterSource) params.set("source", filterSource);
     if (filterPriority) params.set("isPriority", filterPriority);
-    if (startDate) params.set("startDate", startDate);
-    if (endDate) params.set("endDate", endDate);
+    // Send the user's local day boundaries so "today" means their today
+    if (startDate)
+      params.set("startDate", new Date(`${startDate}T00:00:00`).toISOString());
+    if (endDate)
+      params.set("endDate", new Date(`${endDate}T23:59:59.999`).toISOString());
     return params;
   }, [
     search,
@@ -4102,7 +4114,13 @@ export default function OrderManagement() {
     endDate,
   ]);
 
+  // Only the latest request may write state, so a slow earlier response
+  // (e.g. from a previous search keystroke) can't overwrite a newer one.
+  const ordersReqId = useRef(0);
+  const statsReqId = useRef(0);
+
   const fetchOrders = useCallback(async () => {
+    const reqId = ++ordersReqId.current;
     setLoading(true);
     setError("");
 
@@ -4115,17 +4133,20 @@ export default function OrderManagement() {
         headers: authHeaders(),
       });
       const data = await res.json();
+      if (reqId !== ordersReqId.current) return;
       if (!res.ok) throw new Error(data.message || "Failed to load orders");
       setOrders(data.data);
       setPagination(data.pagination);
     } catch (e: unknown) {
+      if (reqId !== ordersReqId.current) return;
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
-      setLoading(false);
+      if (reqId === ordersReqId.current) setLoading(false);
     }
   }, [buildFilterParams, page]);
 
   const fetchStats = useCallback(async () => {
+    const reqId = ++statsReqId.current;
     setStatsLoading(true);
 
     const params = buildFilterParams();
@@ -4135,13 +4156,13 @@ export default function OrderManagement() {
         headers: authHeaders(),
       });
       const data = await res.json();
-      if (res.ok && data.success) {
+      if (reqId === statsReqId.current && res.ok && data.success) {
         setStats(data.data);
       }
     } catch {
       /* non-fatal, keep old stats or show skeleton */
     } finally {
-      setStatsLoading(false);
+      if (reqId === statsReqId.current) setStatsLoading(false);
     }
   }, [buildFilterParams]);
 
@@ -4411,7 +4432,7 @@ export default function OrderManagement() {
         </div>
 
         {/* Stats */}
-        {statsLoading ? (
+        {statsLoading && !stats ? (
           <div
             style={{
               display: "flex",
@@ -4425,6 +4446,17 @@ export default function OrderManagement() {
           <StatsBar
             stats={stats}
             period={period}
+            rangeLabel={
+              datePreset === "today"
+                ? "today"
+                : datePreset === "7d"
+                ? "last 7 days"
+                : datePreset === "30d"
+                ? "last 30 days"
+                : startDate || endDate
+                ? `${startDate || "start"} to ${endDate || "now"}`
+                : undefined
+            }
             filtered={hasActiveFilters}
             onPeriodChange={(p) => {
               setPeriod(p);
@@ -4722,7 +4754,11 @@ export default function OrderManagement() {
           {/* Shopify-Style Date Range Picker Dropdown Button */}
           <div className="relative">
             <button
-              onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
+              onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                setDatePickerAlignRight(rect.left + 288 > window.innerWidth - 16);
+                setIsDatePickerOpen(!isDatePickerOpen);
+              }}
               className={`h-10 px-3.5 text-sm font-medium border rounded-xl flex items-center gap-2 transition ${
                 startDate || endDate || datePreset !== "all"
                   ? "border-amber-500 bg-amber-50/50 text-amber-900 ring-2 ring-amber-300/30"
@@ -4746,7 +4782,7 @@ export default function OrderManagement() {
 
             {/* Shopify-Style Date Popover Container */}
             {isDatePickerOpen && (
-              <div className="absolute right-0 mt-2 w-72 bg-white border border-gray-200 rounded-2xl shadow-xl z-50 p-4 space-y-3">
+              <div className={`absolute ${datePickerAlignRight ? "right-0" : "left-0"} mt-2 w-72 max-w-[calc(100vw-2rem)] bg-white border border-gray-200 rounded-2xl shadow-xl z-50 p-4 space-y-3`}>
                 <div className="flex items-center justify-between pb-2 border-b border-gray-100">
                   <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
                     Select Range
@@ -4770,29 +4806,32 @@ export default function OrderManagement() {
                     <button
                       key={preset.value}
                       onClick={() => {
-                        const now = new Date();
-                        setDatePreset(preset.value as any);
+                        // Local calendar dates (toISOString would give UTC)
+                        const localDate = (daysAgo: number) => {
+                          const d = new Date();
+                          d.setDate(d.getDate() - daysAgo);
+                          return `${d.getFullYear()}-${String(
+                            d.getMonth() + 1,
+                          ).padStart(2, "0")}-${String(d.getDate()).padStart(
+                            2,
+                            "0",
+                          )}`;
+                        };
+                        setDatePreset(preset.value as typeof datePreset);
                         setPage(1);
 
                         if (preset.value === "all") {
                           setStartDate("");
                           setEndDate("");
                         } else if (preset.value === "today") {
-                          const today = now.toISOString().split("T")[0];
-                          setStartDate(today);
-                          setEndDate(today);
+                          setStartDate(localDate(0));
+                          setEndDate(localDate(0));
                         } else if (preset.value === "7d") {
-                          const past = new Date(now.setDate(now.getDate() - 7))
-                            .toISOString()
-                            .split("T")[0];
-                          setStartDate(past);
-                          setEndDate(new Date().toISOString().split("T")[0]);
+                          setStartDate(localDate(7));
+                          setEndDate(localDate(0));
                         } else if (preset.value === "30d") {
-                          const past = new Date(now.setDate(now.getDate() - 30))
-                            .toISOString()
-                            .split("T")[0];
-                          setStartDate(past);
-                          setEndDate(new Date().toISOString().split("T")[0]);
+                          setStartDate(localDate(30));
+                          setEndDate(localDate(0));
                         }
                         setIsDatePickerOpen(false);
                       }}
