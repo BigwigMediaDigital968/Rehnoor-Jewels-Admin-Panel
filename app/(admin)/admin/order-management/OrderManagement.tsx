@@ -4051,6 +4051,26 @@ export default function OrderManagement() {
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   // Open leftwards only when the 288px popover wouldn't fit on the right
   const [datePickerAlignRight, setDatePickerAlignRight] = useState(false);
+  const datePickerRef = useRef<HTMLDivElement>(null);
+
+  // Close the date popover on outside click or Escape
+  useEffect(() => {
+    if (!isDatePickerOpen) return;
+    const onPointerDown = (e: MouseEvent) => {
+      if (!datePickerRef.current?.contains(e.target as Node)) {
+        setIsDatePickerOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsDatePickerOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isDatePickerOpen]);
 
   const [page, setPage] = useState(1);
 
@@ -4752,7 +4772,7 @@ export default function OrderManagement() {
           ))}
 
           {/* Shopify-Style Date Range Picker Dropdown Button */}
-          <div className="relative">
+          <div className="relative" ref={datePickerRef}>
             <button
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
