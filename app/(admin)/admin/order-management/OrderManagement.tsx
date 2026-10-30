@@ -147,14 +147,25 @@ interface Pagination {
   limit: number;
   totalPages: number;
 }
+
+interface RevenueMetric {
+  total: number;
+  paidOrders: number;
+}
+
 interface Stats {
   totalOrders: number;
   byStatus: Record<string, number>;
-  revenue: { total: number; paidOrders: number };
+  revenue: RevenueMetric;
+  netRevenue: RevenueMetric;
+  grossRevenue: RevenueMetric;
+  avgOrderValue?: number;
   period: {
     label: string;
     orders: number;
-    revenue: number;
+    revenue: number; // Gross revenue for the selected period
+    netRevenue?: number; // Net revenue for the selected period
+    grossRevenue?: number; // Gross revenue for the selected period
     avgOrderValue: number;
   };
 }
@@ -3109,7 +3120,9 @@ function OrderDetailModal({
                       <img
                         src={item.image}
                         alt={item.name}
-                        onError={(e) => (e.currentTarget.style.display = "none")}
+                        onError={(e) =>
+                          (e.currentTarget.style.display = "none")
+                        }
                         style={{
                           width: "100%",
                           height: "100%",
@@ -3449,9 +3462,6 @@ function InfoRow({
     </div>
   );
 }
-
-// ─── Stats Bar ────────────────────────────────────────────────────────────────
-
 function StatsBar({
   stats,
   period,
@@ -3470,153 +3480,126 @@ function StatsBar({
   };
   const periodLabel = periodLabels[period] || "all time";
   const scope = filtered ? `${periodLabel}, filtered` : periodLabel;
+
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(4,1fr)",
-        gap: 12,
-        marginBottom: 20,
-      }}
-    >
-      {[
-        {
-          label: "Total Orders",
-          value: stats?.totalOrders?.toLocaleString() || "—",
-          sub: scope,
-          icon: "📦",
-        },
-        {
-          label: "Revenue",
-          value: stats ? inr(stats.period.revenue) : "—",
-          sub: `${stats?.period.orders || 0} orders · ${periodLabel}`,
-          icon: "💰",
-        },
-        {
-          label: "Avg Order",
-          value: stats ? inr(stats.period.avgOrderValue) : "—",
-          sub: scope,
-          icon: "📊",
-        },
-        {
-          label: "Delivered",
-          value: stats?.byStatus?.delivered?.toString() || "0",
-          sub: scope,
-          icon: "✅",
-        },
-      ].map(({ label, value, sub, icon }) => (
-        <div
-          key={label}
-          style={{
-            background: "#fff",
-            border: "1px solid #E5E0D4",
-            borderRadius: 12,
-            padding: "14px 16px",
-            boxShadow: "0 1px 8px rgba(0,0,0,0.04)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              justifyContent: "space-between",
-            }}
-          >
-            <div>
-              <p
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.07em",
-                  color: "#8B7355",
-                  margin: 0,
-                }}
-              >
-                {label}
-              </p>
-              <p
-                style={{
-                  fontSize: 22,
-                  fontWeight: 800,
-                  color: "#1a1a1a",
-                  margin: "6px 0 2px",
-                  lineHeight: 1,
-                }}
-              >
-                {value}
-              </p>
-              <p style={{ fontSize: 11, color: "#aaa", margin: 0 }}>{sub}</p>
-            </div>
-            <span style={{ fontSize: 20 }}>{icon}</span>
-          </div>
-        </div>
-      ))}
+    <div style={{ marginBottom: 20 }}>
+      {/* 5-Column Stats Grid */}
       <div
         style={{
-          gridColumn: "1 / -1",
-          display: "flex",
-          gap: 6,
-          alignItems: "center",
-          flexWrap: "wrap",
+          display: "grid",
+          gridTemplateColumns: "repeat(5, 1fr)",
+          gap: 12,
+          marginBottom: 14,
         }}
       >
         {[
-          ["7d", "7 days"],
-          ["30d", "30 days"],
-          ["90d", "90 days"],
-          ["all", "All time"],
-        ].map(([val, lbl]) => (
-          <button
-            key={val}
-            onClick={() => onPeriodChange(val)}
-            style={{
-              padding: "5px 14px",
-              borderRadius: 8,
-              border: `1.5px solid ${period === val ? "#D4A017" : "#E5E0D4"}`,
-              background: period === val ? "#FFF8E6" : "#fff",
-              color: period === val ? "#a06800" : "#888",
-              fontSize: 11,
-              fontWeight: period === val ? 700 : 500,
-              cursor: "pointer",
-            }}
-          >
-            {lbl}
-          </button>
-        ))}
-        {stats && (
+          {
+            label: "Total Orders",
+            value: stats?.totalOrders?.toLocaleString() || "0",
+            sub: scope,
+            icon: "📦",
+            color: "#1a1a1a",
+          },
+          {
+            label: "Net Revenue",
+            // Extract .total from the object
+            value: stats
+              ? inr(stats.netRevenue?.total ?? stats.period?.netRevenue ?? 0)
+              : "—",
+            sub: `${
+              stats?.netRevenue?.paidOrders || 0
+            } paid orders · ${periodLabel}`,
+            icon: "💰",
+            color: "#166534",
+            bgHighlight: "#F0FFF4",
+          },
+          {
+            label: "Gross Revenue",
+            // Extract .total from the object
+            value: stats
+              ? inr(
+                  stats.grossRevenue?.total ??
+                    stats.revenue?.total ??
+                    stats.period?.revenue ??
+                    0,
+                )
+              : "—",
+            sub: `${stats?.totalOrders || 0} total orders · ${periodLabel}`,
+            icon: "📊",
+            color: "#1a1a1a",
+          },
+          {
+            label: "Avg Order",
+            value: stats
+              ? inr(stats.period?.avgOrderValue ?? stats.avgOrderValue ?? 0)
+              : "—",
+            sub: scope,
+            icon: "📈",
+            color: "#1a1a1a",
+          },
+          {
+            label: "Delivered",
+            value: stats?.byStatus?.delivered?.toString() || "0",
+            sub: scope,
+            icon: "✅",
+            color: "#0284c7",
+          },
+        ].map(({ label, value, sub, icon, color, bgHighlight }) => (
           <div
+            key={label}
             style={{
-              display: "flex",
-              gap: 6,
-              marginLeft: "auto",
-              flexWrap: "wrap",
-              alignItems: "center",
+              background: bgHighlight || "#fff",
+              border: bgHighlight ? "1px solid #BBF7D0" : "1px solid #E5E0D4",
+              borderRadius: 12,
+              padding: "14px 16px",
+              boxShadow: "0 1px 8px rgba(0,0,0,0.04)",
             }}
           >
-            {ALL_STATUSES.map((s) => {
-              const c = STATUS_CFG[s];
-              const count = stats.byStatus[s] || 0;
-              if (!count) return null;
-              return (
-                <span
-                  key={s}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "space-between",
+              }}
+            >
+              <div>
+                <p
                   style={{
                     fontSize: 10,
                     fontWeight: 700,
-                    background: c.bg,
-                    color: c.color,
-                    padding: "3px 9px",
-                    borderRadius: 10,
-                    border: `1px solid ${c.border}`,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.07em",
+                    color: bgHighlight ? "#15803D" : "#8B7355",
+                    margin: 0,
                   }}
                 >
-                  {c.label}: {count}
-                </span>
-              );
-            })}
+                  {label}
+                </p>
+                <p
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 800,
+                    color: color,
+                    margin: "6px 0 2px",
+                    lineHeight: 1,
+                  }}
+                >
+                  {value}
+                </p>
+                <p
+                  style={{
+                    fontSize: 11,
+                    color: bgHighlight ? "#166534" : "#aaa",
+                    margin: 0,
+                  }}
+                >
+                  {sub}
+                </p>
+              </div>
+              <span style={{ fontSize: 20 }}>{icon}</span>
+            </div>
           </div>
-        )}
+        ))}
       </div>
     </div>
   );
@@ -4031,85 +4014,136 @@ export default function OrderManagement() {
   const [statsLoading, setStatsLoading] = useState(true);
   const [error, setError] = useState("");
   const [modal, setModal] = useState<Modal>({ type: "none" });
+  const [period, setPeriod] = useState("all");
 
+  // Active filter key state to ensure mutual exclusivity
+  type FilterKey =
+    | "status"
+    | "paymentStatus"
+    | "paymentMethod"
+    | "source"
+    | "priority"
+    | "dateRange"
+    | "none";
+  const [activeFilterKey, setActiveFilterKey] = useState<FilterKey>("none");
+
+  // Individual Filter States
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterPaymentStatus, setFilterPaymentStatus] = useState("");
   const [filterPaymentMethod, setFilterPaymentMethod] = useState("");
   const [filterSource, setFilterSource] = useState("");
   const [filterPriority, setFilterPriority] = useState("");
+
+  // Shopify-Style Date Range Picker State
+  const [datePreset, setDatePreset] = useState<
+    "all" | "today" | "7d" | "30d" | "custom"
+  >("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [page, setPage] = useState(1);
-  const [period, setPeriod] = useState("all");
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
+  const [page, setPage] = useState(1);
+
+  // Helper to handle mutual filter exclusion
+  const handleSingleFilterChange = (key: FilterKey, value: string) => {
+    // Clear all drop-down filters
+    setFilterStatus("");
+    setFilterPaymentStatus("");
+    setFilterPaymentMethod("");
+    setFilterSource("");
+    setFilterPriority("");
+
+    // Apply selected filter
+    if (key === "status") setFilterStatus(value);
+    if (key === "paymentStatus") setFilterPaymentStatus(value);
+    if (key === "paymentMethod") setFilterPaymentMethod(value);
+    if (key === "source") setFilterSource(value);
+    if (key === "priority") setFilterPriority(value);
+
+    setActiveFilterKey(value ? key : "none");
+    setPage(1);
+  };
+
+  // Clear All Filters
+  const clearAllFilters = () => {
+    setSearch("");
+    setFilterStatus("");
+    setFilterPaymentStatus("");
+    setFilterPaymentMethod("");
+    setFilterSource("");
+    setFilterPriority("");
+    setStartDate("");
+    setEndDate("");
+    setDatePreset("all");
+    setActiveFilterKey("none");
+    setPage(1);
+  };
 
   const buildFilterParams = useCallback(() => {
-  const params = new URLSearchParams();
-  if (search) params.set("search", search);
-  if (filterStatus) params.set("status", filterStatus);
-  if (filterPaymentStatus) params.set("paymentStatus", filterPaymentStatus);
-  if (filterPaymentMethod) params.set("paymentMethod", filterPaymentMethod);
-  if (filterSource) params.set("source", filterSource);
-  if (filterPriority) params.set("isPriority", filterPriority);
-  if (startDate) params.set("startDate", startDate);
-  if (endDate) params.set("endDate", endDate);
-  if (period !== "all") params.set("period", period);
-  return params;
-}, [
-  period,
-  search,
-  filterStatus,
-  filterPaymentStatus,
-  filterPaymentMethod,
-  filterSource,
-  filterPriority,
-  startDate,
-  endDate,
-]);
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (filterStatus) params.set("status", filterStatus);
+    if (filterPaymentStatus) params.set("paymentStatus", filterPaymentStatus);
+    if (filterPaymentMethod) params.set("paymentMethod", filterPaymentMethod);
+    if (filterSource) params.set("source", filterSource);
+    if (filterPriority) params.set("isPriority", filterPriority);
+    if (startDate) params.set("startDate", startDate);
+    if (endDate) params.set("endDate", endDate);
+    return params;
+  }, [
+    search,
+    filterStatus,
+    filterPaymentStatus,
+    filterPaymentMethod,
+    filterSource,
+    filterPriority,
+    startDate,
+    endDate,
+  ]);
 
   const fetchOrders = useCallback(async () => {
-  setLoading(true);
-  setError("");
-  
-  const params = buildFilterParams();
-  params.set("page", String(page));
-  params.set("limit", "15");
+    setLoading(true);
+    setError("");
 
-  try {
-    const res = await fetch(`${API_BASE}/api/orders/admin/all?${params}`, {
-      headers: authHeaders(),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Failed to load orders");
-    setOrders(data.data);
-    setPagination(data.pagination);
-  } catch (e: unknown) {
-    setError(e instanceof Error ? e.message : "Something went wrong");
-  } finally {
-    setLoading(false);
-  }
-}, [buildFilterParams, page]);
+    const params = buildFilterParams();
+    params.set("page", String(page));
+    params.set("limit", "15");
+
+    try {
+      const res = await fetch(`${API_BASE}/api/orders/admin/all?${params}`, {
+        headers: authHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to load orders");
+      setOrders(data.data);
+      setPagination(data.pagination);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  }, [buildFilterParams, page]);
 
   const fetchStats = useCallback(async () => {
-  setStatsLoading(true);
+    setStatsLoading(true);
 
-  const params = buildFilterParams();
+    const params = buildFilterParams();
 
-  try {
-    const res = await fetch(`${API_BASE}/api/orders/admin/stats?${params}`, {
-      headers: authHeaders(),
-    });
-    const data = await res.json();
-    if (res.ok && data.success) {
-      setStats(data.data);
+    try {
+      const res = await fetch(`${API_BASE}/api/orders/admin/stats?${params}`, {
+        headers: authHeaders(),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setStats(data.data);
+      }
+    } catch {
+      /* non-fatal, keep old stats or show skeleton */
+    } finally {
+      setStatsLoading(false);
     }
-  } catch {
-    /* non-fatal, keep old stats or show skeleton */
-  } finally {
-    setStatsLoading(false);
-  }
-}, [buildFilterParams]);
+  }, [buildFilterParams]);
 
   // Re-fetch both after any change to an order so the stats stay in sync
   const refreshAll = useCallback(() => {
@@ -4120,7 +4154,6 @@ export default function OrderManagement() {
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
-
 
   // Pull cancellations / pickups / deliveries made in Shiprocket, then refresh
   useEffect(() => {
@@ -4431,7 +4464,7 @@ export default function OrderManagement() {
         )}
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3 mb-5">
+        {/* <div className="flex flex-wrap items-center gap-3 mb-5">
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
               🔍
@@ -4575,6 +4608,252 @@ export default function OrderManagement() {
               className="h-10 px-4 text-xs font-medium text-red-600 border border-red-200 rounded-xl bg-red-50 hover:bg-red-100 transition"
             >
               ✕ Clear
+            </button>
+          )}
+        </div> */}
+
+        {/* Filters Header Bar */}
+        <div className="flex flex-wrap items-center gap-3 mb-5">
+          {/* Search Bar */}
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
+              🔍
+            </span>
+            <input
+              placeholder="Order #, name, email..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              className="pl-9 pr-3 h-10 w-64 text-sm border border-gray-200 rounded-xl bg-white shadow-xs focus:outline-none focus:ring-2 focus:ring-amber-400 transition"
+            />
+          </div>
+
+          {/* Single Active Filters Block */}
+          {[
+            {
+              key: "status" as FilterKey,
+              value: filterStatus,
+              options: ["", ...ALL_STATUSES],
+              format: (s: string) =>
+                s ? STATUS_CFG[s as OrderStatus].label : "All Statuses",
+            },
+            {
+              key: "paymentStatus" as FilterKey,
+              value: filterPaymentStatus,
+              options: [
+                "",
+                "pending",
+                "initiated",
+                "paid",
+                "failed",
+                "refunded",
+                "partially_refunded",
+              ],
+              format: (s: string) =>
+                s ? s.replace("_", " ").toUpperCase() : "All Payments",
+            },
+            {
+              key: "paymentMethod" as FilterKey,
+              value: filterPaymentMethod,
+              options: [
+                "",
+                "cod",
+                "razorpay",
+                "stripe",
+                "payu",
+                "upi",
+                "bank_transfer",
+                "other",
+              ],
+              format: (m: string) => (m ? m.toUpperCase() : "All Methods"),
+            },
+            {
+              key: "source" as FilterKey,
+              value: filterSource,
+              options: [
+                "",
+                "website",
+                "instagram",
+                "whatsapp",
+                "admin",
+                "app",
+                "other",
+              ],
+              format: (s: string) => (s ? s.toUpperCase() : "All Sources"),
+            },
+            {
+              key: "priority" as FilterKey,
+              value: filterPriority,
+              options: ["", "true", "false"],
+              format: (v: string) =>
+                v === "true"
+                  ? "⚡ Priority"
+                  : v === "false"
+                  ? "Normal"
+                  : "Priority",
+            },
+          ].map((filter) => (
+            <div key={filter.key} className="relative">
+              <select
+                value={filter.value}
+                onChange={(e) =>
+                  handleSingleFilterChange(filter.key, e.target.value)
+                }
+                className={`appearance-none h-10 pl-3 pr-8 text-sm border rounded-xl shadow-xs transition cursor-pointer ${
+                  filter.value
+                    ? "border-amber-500 bg-amber-50/50 font-semibold text-amber-900 ring-2 ring-amber-300/30"
+                    : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                {filter.options.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {filter.format(opt)}
+                  </option>
+                ))}
+              </select>
+              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none">
+                ▼
+              </span>
+            </div>
+          ))}
+
+          {/* Shopify-Style Date Range Picker Dropdown Button */}
+          <div className="relative">
+            <button
+              onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
+              className={`h-10 px-3.5 text-sm font-medium border rounded-xl flex items-center gap-2 transition ${
+                startDate || endDate || datePreset !== "all"
+                  ? "border-amber-500 bg-amber-50/50 text-amber-900 ring-2 ring-amber-300/30"
+                  : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              <span>📅</span>
+              <span>
+                {datePreset === "today"
+                  ? "Today"
+                  : datePreset === "7d"
+                  ? "Last 7 Days"
+                  : datePreset === "30d"
+                  ? "Last 30 Days"
+                  : startDate || endDate
+                  ? `${startDate || "Start"} to ${endDate || "End"}`
+                  : "Date Range"}
+              </span>
+              <span className="text-xs text-gray-400 ml-1">▼</span>
+            </button>
+
+            {/* Shopify-Style Date Popover Container */}
+            {isDatePickerOpen && (
+              <div className="absolute right-0 mt-2 w-72 bg-white border border-gray-200 rounded-2xl shadow-xl z-50 p-4 space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    Select Range
+                  </span>
+                  <button
+                    onClick={() => setIsDatePickerOpen(false)}
+                    className="text-xs text-gray-400 hover:text-gray-600 font-bold"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Preset Quick Actions */}
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label: "All Time", value: "all" },
+                    { label: "Today", value: "today" },
+                    { label: "Last 7 Days", value: "7d" },
+                    { label: "Last 30 Days", value: "30d" },
+                  ].map((preset) => (
+                    <button
+                      key={preset.value}
+                      onClick={() => {
+                        const now = new Date();
+                        setDatePreset(preset.value as any);
+                        setPage(1);
+
+                        if (preset.value === "all") {
+                          setStartDate("");
+                          setEndDate("");
+                        } else if (preset.value === "today") {
+                          const today = now.toISOString().split("T")[0];
+                          setStartDate(today);
+                          setEndDate(today);
+                        } else if (preset.value === "7d") {
+                          const past = new Date(now.setDate(now.getDate() - 7))
+                            .toISOString()
+                            .split("T")[0];
+                          setStartDate(past);
+                          setEndDate(new Date().toISOString().split("T")[0]);
+                        } else if (preset.value === "30d") {
+                          const past = new Date(now.setDate(now.getDate() - 30))
+                            .toISOString()
+                            .split("T")[0];
+                          setStartDate(past);
+                          setEndDate(new Date().toISOString().split("T")[0]);
+                        }
+                        setIsDatePickerOpen(false);
+                      }}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-lg border text-left transition ${
+                        datePreset === preset.value
+                          ? "border-amber-500 bg-amber-50 text-amber-900 font-bold"
+                          : "border-gray-200 bg-gray-50/50 hover:bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Custom Range Selector Inputs */}
+                <div className="pt-2 border-t border-gray-100 space-y-2">
+                  <span className="text-[11px] font-semibold text-gray-400 uppercase">
+                    Custom Dates
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => {
+                        setStartDate(e.target.value);
+                        setDatePreset("custom");
+                        setPage(1);
+                      }}
+                      className="w-full h-8 px-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    />
+                    <span className="text-gray-400 text-xs">to</span>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => {
+                        setEndDate(e.target.value);
+                        setDatePreset("custom");
+                        setPage(1);
+                      }}
+                      className="w-full h-8 px-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setIsDatePickerOpen(false)}
+                  className="w-full py-1.5 mt-1 bg-[#003720] text-white text-xs font-semibold rounded-lg hover:bg-[#002817] transition"
+                >
+                  Apply Date Range
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Clear All Filters Button */}
+          {hasActiveFilters && (
+            <button
+              onClick={clearAllFilters}
+              className="h-10 px-4 text-xs font-semibold text-red-600 border border-red-200 rounded-xl bg-red-50 hover:bg-red-100 transition flex items-center gap-1.5"
+            >
+              <span>✕</span> Clear Filters
             </button>
           )}
         </div>
