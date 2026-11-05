@@ -32,7 +32,39 @@ export interface ProductSummary {
   sku?: string;
   weightGrams?: string;
   shortDescription?: string;
+  createdAt?: string;
   collection?: { _id: string; name: string } | null;
+}
+
+// Mirrors Rehnoor-Jewels-Backend/utils/collectionSort.js so the admin list
+// previews exactly what the storefront will show. `ids` is the manual order.
+function sortIds(
+  ids: string[],
+  mode: ProductSort,
+  lookup: (id: string) => ProductSummary | undefined,
+): string[] {
+  if (mode === "manual") return ids;
+  const pos = new Map(ids.map((id, i) => [id, i]));
+  const time = (id: string) => new Date(lookup(id)?.createdAt ?? 0).getTime();
+  const name = (id: string) => lookup(id)?.name ?? "";
+  const price = (id: string) => lookup(id)?.price ?? 0;
+  const byName = (a: string, b: string) =>
+    name(a).localeCompare(name(b), undefined, {
+      sensitivity: "base",
+      numeric: true,
+    });
+  const cmp: Record<string, (a: string, b: string) => number> = {
+    "created-desc": (a, b) => time(b) - time(a),
+    "created-asc": (a, b) => time(a) - time(b),
+    "name-asc": byName,
+    "name-desc": (a, b) => byName(b, a),
+    "price-asc": (a, b) => price(a) - price(b),
+    "price-desc": (a, b) => price(b) - price(a),
+  };
+  const primary = cmp[mode];
+  return [...ids].sort(
+    (a, b) => (primary ? primary(a, b) : 0) || pos.get(a)! - pos.get(b)!,
+  );
 }
 
 export interface Collection {
@@ -53,10 +85,20 @@ export interface Collection {
   seoKeywords: string[];
   isActive: boolean;
   sortOrder: number;
+  productSort?: ProductSort;
   createdAt: string;
   updatedAt: string;
   products?: ProductSummary[];
 }
+
+export type ProductSort =
+  | "manual"
+  | "created-desc"
+  | "created-asc"
+  | "name-asc"
+  | "name-desc"
+  | "price-asc"
+  | "price-desc";
 
 interface Pagination {
   total: number;
@@ -103,6 +145,7 @@ export const EMPTY_FORM = {
   seoKeywords: "",
   isActive: true,
   sortOrder: "0",
+  productSort: "manual" as ProductSort,
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -726,11 +769,16 @@ function SelectedOrderList({
   selected,
   lookup,
   onChange,
+  sort,
 }: {
   selected: string[];
   lookup: (id: string) => ProductSummary | undefined;
   onChange: (ids: string[]) => void;
+  sort: ProductSort; // non-manual → list shows the automatic order, read-only
 }) {
+  const manual = sort === "manual";
+  // What the storefront will show. `selected` stays the manual order.
+  const display = sortIds(selected, sort, lookup);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
 
@@ -771,7 +819,9 @@ function SelectedOrderList({
       >
         Display order{" "}
         <span style={{ fontWeight: 400, textTransform: "none", color: "#aaa" }}>
-          — drag rows or type a position
+          {manual
+            ? "— drag rows or type a position"
+            : "— set automatically by the sort option above; switch to “Manually” to reorder"}
         </span>
       </p>
       <div
@@ -783,14 +833,15 @@ function SelectedOrderList({
           overflowY: "auto",
         }}
       >
-        {selected.map((id, i) => {
+        {display.map((id, i) => {
           const p = lookup(id);
           const isOver = overIdx === i && dragIdx !== null && dragIdx !== i;
           return (
             <div
               key={id}
-              draggable
+              draggable={manual}
               onDragStart={(e) => {
+                if (!manual) return;
                 setDragIdx(i);
                 e.dataTransfer.effectAllowed = "move";
               }}
@@ -819,22 +870,36 @@ function SelectedOrderList({
               }}
             >
               <span
-                title="Drag to reorder"
+                title={manual ? "Drag to reorder" : "Order is automatic"}
                 aria-hidden
                 style={{
-                  cursor: "grab",
-                  color: "#bbb",
+                  cursor: manual ? "grab" : "not-allowed",
+                  color: manual ? "#bbb" : "#e5e0d4",
                   fontSize: 16,
                   userSelect: "none",
                 }}
               >
                 &#8942;&#8942;
               </span>
-              <PositionInput
-                value={i + 1}
-                max={selected.length}
-                onCommit={(pos) => move(i, pos - 1)}
-              />
+              {manual ? (
+                <PositionInput
+                  value={i + 1}
+                  max={selected.length}
+                  onCommit={(pos) => move(i, pos - 1)}
+                />
+              ) : (
+                <span
+                  style={{
+                    width: 44,
+                    textAlign: "center",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: "#bbb",
+                  }}
+                >
+                  {i + 1}
+                </span>
+              )}
               <div
                 style={{
                   width: 32,
@@ -859,20 +924,52 @@ function SelectedOrderList({
                   /> // eslint-disable-line @next/next/no-img-element
                 )}
               </div>
-              <span
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: "#1a1a1a",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {p?.name ?? id}
-              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span
+                  style={{
+                    display: "block",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: sort.startsWith("name") ? "#a06800" : "#1a1a1a",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {p?.name ?? id}
+                </span>
+                <span
+                  style={{
+                    display: "flex",
+                    gap: 6,
+                    marginTop: 2,
+                    fontSize: 11,
+                    color: "#999",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <span
+                    style={
+                      sort.startsWith("price")
+                        ? { color: "#a06800", fontWeight: 700 }
+                        : undefined
+                    }
+                  >
+                    {inr(p?.price)}
+                  </span>
+                  <span aria-hidden="true">·</span>
+                  <span
+                    style={
+                      sort.startsWith("created")
+                        ? { color: "#a06800", fontWeight: 700 }
+                        : undefined
+                    }
+                  >
+                    {p?.createdAt ? `Added ${fmt(p.createdAt)}` : "Added —"}
+                  </span>
+                </span>
+              </div>
+              {manual && (
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 <button
                   type="button"
@@ -896,6 +993,7 @@ function SelectedOrderList({
                   &#9660;
                 </button>
               </div>
+              )}
               <button
                 type="button"
                 aria-label="Remove from collection"
@@ -923,11 +1021,15 @@ export function ProductPicker({
   onChange,
   onViewProduct,
   initialProducts,
+  sort = "manual",
+  sortControl,
 }: {
   selected: string[];
   onChange: (ids: string[]) => void;
   onViewProduct: (p: ProductSummary) => void;
   initialProducts?: ProductSummary[];
+  sort?: ProductSort;
+  sortControl?: React.ReactNode;
 }) {
   // Remembers every product seen so selected ones keep their name/image
   // even after paging or searching away from them.
@@ -1008,6 +1110,7 @@ export function ProductPicker({
             : "No products added yet"}
         </span>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {sortControl}
           {selected.length > 0 && (
             <button
               type="button"
@@ -1048,6 +1151,7 @@ export function ProductPicker({
           selected={selected}
           lookup={(id) => knownProducts.current.get(id)}
           onChange={onChange}
+          sort={sort}
         />
       ) : (
         <div

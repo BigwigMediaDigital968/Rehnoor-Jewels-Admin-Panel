@@ -17,6 +17,8 @@ import {
   type ProductSummary,
 } from "./CollectionManagement";
 
+import SortSelect from "./SortSelect";
+
 const LIST_URL = "/admin/collections";
 
 // ─── Collection Form (full page) ──────────────────────────────────────────────
@@ -56,6 +58,7 @@ function CollectionFormInner({
           seoKeywords: initial.seoKeywords?.join(", ") || "",
           isActive: initial.isActive,
           sortOrder: String(initial.sortOrder ?? 0),
+          productSort: initial.productSort ?? "manual",
         }
       : {}),
   });
@@ -115,6 +118,7 @@ function CollectionFormInner({
           "seoTitle",
           "seoDescription",
           "sortOrder",
+          "productSort",
         ] as const
       ).forEach((k) => fd.append(k, String(form[k])));
       fd.append("isActive", String(form.isActive));
@@ -532,6 +536,13 @@ function CollectionFormInner({
                 Selected products will be linked when you save.
               </p>
               <ProductPicker
+                sort={form.productSort}
+                sortControl={
+                  <SortSelect
+                    value={form.productSort}
+                    onChange={(v) => set("productSort", v)}
+                  />
+                }
                 selected={selectedProductIds}
                 onChange={setSelectedProductIds}
                 onViewProduct={onViewProduct}
