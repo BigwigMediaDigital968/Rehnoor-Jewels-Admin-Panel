@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -34,7 +35,7 @@ export interface ProductSummary {
   collection?: { _id: string; name: string } | null;
 }
 
-interface Collection {
+export interface Collection {
   _id: string;
   name: string;
   slug: string;
@@ -66,8 +67,6 @@ interface Pagination {
 
 type ModalState =
   | { type: "none" }
-  | { type: "add" }
-  | { type: "edit"; collection: Collection }
   | { type: "view"; collection: Collection }
   | { type: "confirm-delete"; id: string; name: string }
   | { type: "confirm-toggle"; id: string; name: string; currentStatus: boolean }
@@ -76,8 +75,8 @@ type ModalState =
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-const TAGS: CollectionTag[] = [
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export const TAGS: CollectionTag[] = [
   "",
   "Bestseller",
   "New",
@@ -87,8 +86,8 @@ const TAGS: CollectionTag[] = [
   "Trending",
   "Featured",
 ];
-const PURITIES = ["22kt", "18kt", "24kt", "14kt", "925 Silver"];
-const EMPTY_FORM = {
+export const PURITIES = ["22kt", "18kt", "24kt", "14kt", "925 Silver"];
+export const EMPTY_FORM = {
   name: "",
   slug: "",
   label: "",
@@ -113,13 +112,13 @@ function getToken() {
     ? localStorage.getItem("admin_token") || ""
     : "";
 }
-function authHeaders(): Record<string, string> {
+export function authHeaders(): Record<string, string> {
   return {
     "Content-Type": "application/json",
     Authorization: `Bearer ${getToken()}`,
   };
 }
-function authOnlyHeaders(): Record<string, string> {
+export function authOnlyHeaders(): Record<string, string> {
   return { Authorization: `Bearer ${getToken()}` };
 }
 function fmt(iso: string) {
@@ -677,20 +676,272 @@ export function ProductDetailModal({
 
 // ─── Product Picker ───────────────────────────────────────────────────────────
 
+// Ordered list of the selected products: edit the position number, drag a row,
+// or use the arrows. Moving one product only shifts the products between its
+// old and new position — everything else keeps its place.
+function PositionInput({
+  value,
+  max,
+  onCommit,
+}: {
+  value: number;
+  max: number;
+  onCommit: (pos: number) => void;
+}) {
+  const [text, setText] = useState(String(value));
+  useEffect(() => setText(String(value)), [value]);
+  const commit = () => {
+    const n = Math.round(Number(text));
+    if (!Number.isFinite(n) || n < 1) return setText(String(value));
+    onCommit(Math.min(n, max));
+  };
+  return (
+    <input
+      type="number"
+      min={1}
+      max={max}
+      value={text}
+      aria-label="Position in collection"
+      onChange={(e) => setText(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) =>
+        e.key === "Enter" && (e.target as HTMLInputElement).blur()
+      }
+      style={{
+        width: 44,
+        padding: "4px 6px",
+        borderRadius: 6,
+        border: "1.5px solid #E5E0D4",
+        fontSize: 12,
+        fontWeight: 700,
+        textAlign: "center",
+        color: "#a06800",
+        outline: "none",
+      }}
+    />
+  );
+}
+
+function SelectedOrderList({
+  selected,
+  lookup,
+  onChange,
+}: {
+  selected: string[];
+  lookup: (id: string) => ProductSummary | undefined;
+  onChange: (ids: string[]) => void;
+}) {
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [overIdx, setOverIdx] = useState<number | null>(null);
+
+  const move = (from: number, to: number) => {
+    if (from === to || to < 0 || to >= selected.length) return;
+    const next = [...selected];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    onChange(next);
+  };
+  const endDrag = () => {
+    setDragIdx(null);
+    setOverIdx(null);
+  };
+  const arrowBtn: React.CSSProperties = {
+    width: 22,
+    height: 18,
+    border: "1px solid #E5E0D4",
+    background: "#fff",
+    borderRadius: 4,
+    fontSize: 9,
+    lineHeight: 1,
+    color: "#777",
+    cursor: "pointer",
+  };
+
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <p
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          color: "#8B7355",
+          margin: "0 0 6px",
+        }}
+      >
+        Display order{" "}
+        <span style={{ fontWeight: 400, textTransform: "none", color: "#aaa" }}>
+          — drag rows or type a position
+        </span>
+      </p>
+      <div
+        style={{
+          border: "1px solid #E5E0D4",
+          borderRadius: 10,
+          background: "#fff",
+          maxHeight: 320,
+          overflowY: "auto",
+        }}
+      >
+        {selected.map((id, i) => {
+          const p = lookup(id);
+          const isOver = overIdx === i && dragIdx !== null && dragIdx !== i;
+          return (
+            <div
+              key={id}
+              draggable
+              onDragStart={(e) => {
+                setDragIdx(i);
+                e.dataTransfer.effectAllowed = "move";
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (overIdx !== i) setOverIdx(i);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (dragIdx !== null) move(dragIdx, i);
+                endDrag();
+              }}
+              onDragEnd={endDrag}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "8px 12px",
+                borderBottom:
+                  i < selected.length - 1 ? "1px solid #F5F2EA" : "none",
+                background: dragIdx === i ? "#FFF8E6" : "#fff",
+                opacity: dragIdx === i ? 0.5 : 1,
+                borderTop: isOver
+                  ? "2px solid #D4A017"
+                  : "2px solid transparent",
+              }}
+            >
+              <span
+                title="Drag to reorder"
+                aria-hidden
+                style={{
+                  cursor: "grab",
+                  color: "#bbb",
+                  fontSize: 16,
+                  userSelect: "none",
+                }}
+              >
+                &#8942;&#8942;
+              </span>
+              <PositionInput
+                value={i + 1}
+                max={selected.length}
+                onCommit={(pos) => move(i, pos - 1)}
+              />
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 6,
+                  overflow: "hidden",
+                  flexShrink: 0,
+                  background: "#F5F2EA",
+                  border: "1px solid #E5E0D4",
+                }}
+              >
+                {p?.images?.[0]?.src && (
+                  <img
+                    src={p.images[0].src}
+                    alt=""
+                    draggable={false}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                  /> // eslint-disable-line @next/next/no-img-element
+                )}
+              </div>
+              <span
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#1a1a1a",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {p?.name ?? id}
+              </span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <button
+                  type="button"
+                  aria-label="Move up"
+                  disabled={i === 0}
+                  onClick={() => move(i, i - 1)}
+                  style={{ ...arrowBtn, opacity: i === 0 ? 0.35 : 1 }}
+                >
+                  &#9650;
+                </button>
+                <button
+                  type="button"
+                  aria-label="Move down"
+                  disabled={i === selected.length - 1}
+                  onClick={() => move(i, i + 1)}
+                  style={{
+                    ...arrowBtn,
+                    opacity: i === selected.length - 1 ? 0.35 : 1,
+                  }}
+                >
+                  &#9660;
+                </button>
+              </div>
+              <button
+                type="button"
+                aria-label="Remove from collection"
+                onClick={() => onChange(selected.filter((s) => s !== id))}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#c0392b",
+                  cursor: "pointer",
+                  fontSize: 14,
+                }}
+              >
+                &#10005;
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function ProductPicker({
   selected,
   onChange,
   onViewProduct,
+  initialProducts,
 }: {
   selected: string[];
   onChange: (ids: string[]) => void;
   onViewProduct: (p: ProductSummary) => void;
+  initialProducts?: ProductSummary[];
 }) {
+  // Remembers every product seen so selected ones keep their name/image
+  // even after paging or searching away from them.
+  const knownProducts = useRef(
+    new Map<string, ProductSummary>(
+      (initialProducts ?? []).map((p) => [p._id, p]),
+    ),
+  );
   const [products, setProducts] = useState<ProductSummary[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [prodSearch, setProdSearch] = useState("");
   const [prodPage, setProdPage] = useState(1);
   const [prodTotal, setProdTotal] = useState(0);
+  const [addOpen, setAddOpen] = useState(false);
   const PROD_LIMIT = 8;
 
   const fetchProducts = useCallback(async () => {
@@ -705,6 +956,9 @@ export function ProductPicker({
       });
       const data = await res.json();
       if (data.success) {
+        (data.data as ProductSummary[]).forEach((p) =>
+          knownProducts.current.set(p._id, p),
+        );
         setProducts(data.data);
         setProdTotal(data.pagination?.total ?? 0);
       }
@@ -728,80 +982,179 @@ export function ProductPicker({
 
   const totalPages = Math.ceil(prodTotal / PROD_LIMIT);
 
+  useEffect(() => {
+    if (!addOpen) return;
+    const fn = (e: KeyboardEvent) => e.key === "Escape" && setAddOpen(false);
+    window.addEventListener("keydown", fn);
+    return () => window.removeEventListener("keydown", fn);
+  }, [addOpen]);
+
   return (
     <div>
+      {/* Clean summary: only the ordered products of this collection */}
       <div
         style={{
           display: "flex",
-          gap: 8,
-          marginBottom: 10,
           alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10,
+          marginBottom: 12,
+          flexWrap: "wrap",
         }}
       >
-        <input
-          value={prodSearch}
-          onChange={(e) => {
-            setProdSearch(e.target.value);
-            setProdPage(1);
-          }}
-          placeholder="Search products by name or SKU..."
-          style={{
-            flex: 1,
-            padding: "8px 12px",
-            borderRadius: 8,
-            border: "1.5px solid #E5E0D4",
-            fontSize: 12,
-            outline: "none",
-            background: "#fff",
-            transition: "border-color 0.15s",
-          }}
-          onFocus={(e) => (e.target.style.borderColor = "#D4A017")}
-          onBlur={(e) => (e.target.style.borderColor = "#E5E0D4")}
-        />
-        <span
-          style={{
-            fontSize: 11,
-            color: "#aaa",
-            whiteSpace: "nowrap",
-            flexShrink: 0,
-          }}
-        >
-          {selected.length} selected
+        <span style={{ fontSize: 13, color: "#555", fontWeight: 600 }}>
+          {selected.length > 0
+            ? `${selected.length} product${selected.length !== 1 ? "s" : ""} in this collection`
+            : "No products added yet"}
         </span>
-      </div>
-
-      {selected.length > 0 && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "7px 12px",
-            background: "#FFF8E6",
-            border: "1px solid #f0a50030",
-            borderRadius: 8,
-            marginBottom: 10,
-          }}
-        >
-          <span style={{ fontSize: 12, color: "#a06800", fontWeight: 600 }}>
-            &#10003; {selected.length} product{selected.length !== 1 ? "s" : ""}{" "}
-            assigned to this collection
-          </span>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {selected.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onChange([])}
+              style={{
+                fontSize: 12,
+                color: "#c0392b",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                fontWeight: 600,
+              }}
+            >
+              Clear all
+            </button>
+          )}
           <button
-            onClick={() => onChange([])}
+            type="button"
+            onClick={() => setAddOpen(true)}
             style={{
-              fontSize: 11,
-              color: "#c0392b",
-              background: "none",
+              padding: "8px 16px",
+              borderRadius: 9,
               border: "none",
-              cursor: "pointer",
+              background: "#D4A017",
+              color: "#fff",
               fontWeight: 600,
+              fontSize: 12,
+              cursor: "pointer",
             }}
           >
-            Clear all
+            + Add products
           </button>
         </div>
+      </div>
+
+      {selected.length > 0 ? (
+        <SelectedOrderList
+          selected={selected}
+          lookup={(id) => knownProducts.current.get(id)}
+          onChange={onChange}
+        />
+      ) : (
+        <div
+          style={{
+            textAlign: "center",
+            padding: "32px 16px",
+            border: "1.5px dashed #E5E0D4",
+            borderRadius: 10,
+            color: "#aaa",
+            fontSize: 13,
+          }}
+        >
+          Click &ldquo;Add products&rdquo; to choose what belongs in this
+          collection.
+        </div>
       )}
+
+      {addOpen && (
+        <div
+          onClick={() => setAddOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1200,
+            background: "rgba(10,8,5,0.55)",
+            backdropFilter: "blur(5px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Add products to collection"
+            style={{
+              width: "100%",
+              maxWidth: 720,
+              maxHeight: "90vh",
+              display: "flex",
+              flexDirection: "column",
+              background: "#fff",
+              borderRadius: 16,
+              boxShadow: "0 28px 70px rgba(0,0,0,0.22)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "16px 20px",
+                borderBottom: "1px solid #F0EBE0",
+              }}
+            >
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#1a1a1a" }}>
+                Add products
+              </h3>
+              <button
+                type="button"
+                onClick={() => setAddOpen(false)}
+                aria-label="Close"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "50%",
+                  border: "none",
+                  background: "#F5F1E8",
+                  color: "#666",
+                  cursor: "pointer",
+                  fontSize: 14,
+                }}
+              >
+                &#10005;
+              </button>
+            </div>
+
+            <div style={{ padding: 20, overflowY: "auto", flex: 1 }}>
+              <div style={{ display: "flex", gap: 8, marginBottom: 10, alignItems: "center" }}>
+                <input
+                  value={prodSearch}
+                  onChange={(e) => {
+                    setProdSearch(e.target.value);
+                    setProdPage(1);
+                  }}
+                  placeholder="Search products by name or SKU..."
+                  autoFocus
+                  style={{
+                    flex: 1,
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    border: "1.5px solid #E5E0D4",
+                    fontSize: 12,
+                    outline: "none",
+                    background: "#fff",
+                    transition: "border-color 0.15s",
+                  }}
+                  onFocus={(e) => (e.target.style.borderColor = "#D4A017")}
+                  onBlur={(e) => (e.target.style.borderColor = "#E5E0D4")}
+                />
+                <span style={{ fontSize: 11, color: "#aaa", whiteSpace: "nowrap", flexShrink: 0 }}>
+                  {selected.length} selected
+                </span>
+              </div>
 
       <div
         style={{
@@ -1009,6 +1362,41 @@ export function ProductPicker({
           >
             Next &#8594;
           </button>
+        </div>
+      )}
+            </div>
+
+            <div
+              style={{
+                padding: "14px 20px",
+                borderTop: "1px solid #F0EBE0",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                background: "#FDFAF5",
+              }}
+            >
+              <span style={{ fontSize: 12, color: "#aaa" }}>
+                {selected.length} selected
+              </span>
+              <button
+                type="button"
+                onClick={() => setAddOpen(false)}
+                style={{
+                  padding: "9px 20px",
+                  borderRadius: 9,
+                  border: "none",
+                  background: "#D4A017",
+                  color: "#fff",
+                  fontWeight: 600,
+                  fontSize: 13,
+                  cursor: "pointer",
+                }}
+              >
+                Done
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -1501,688 +1889,6 @@ function CollectionPopup({
     </div>
   );
 }
-// ─── Collection Form Modal ────────────────────────────────────────────────────
-
-function CollectionFormModal({
-  mode,
-  initial,
-  onClose,
-  onSuccess,
-  onViewProduct,
-}: {
-  mode: "add" | "edit";
-  initial?: Collection;
-  onClose: () => void;
-  onSuccess: (msg: string) => void;
-  onViewProduct: (p: ProductSummary) => void;
-}) {
-  const [form, setForm] = useState({
-    ...EMPTY_FORM,
-    ...(initial
-      ? {
-          name: initial.name,
-          slug: initial.slug,
-          label: initial.label,
-          tagline: initial.tagline,
-          description: initial.description,
-          heroImage: initial.heroImage,
-          accentColor: initial.accentColor,
-          tag: initial.tag,
-          purity: initial.purity,
-          breadcrumb: initial.breadcrumb?.join(", ") || "",
-          seoTitle: initial.seoTitle,
-          seoDescription: initial.seoDescription,
-          seoKeywords: initial.seoKeywords?.join(", ") || "",
-          isActive: initial.isActive,
-          sortOrder: String(initial.sortOrder ?? 0),
-        }
-      : {}),
-  });
-  // ✅ FIXED
-  const [selectedProductIds, setSelectedProductIds] = useState<string[]>(
-    initial?.products?.map((p) => (typeof p === "string" ? p : p._id)) ?? [],
-  );
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [heroFile, setHeroFile] = useState<File | null>(null);
-  const [heroPreview, setHeroPreview] = useState(initial?.heroImage || "");
-  const heroInputRef = useRef<HTMLInputElement>(null);
-  const colorRef = useRef<HTMLInputElement>(null);
-  const [tab, setTab] = useState<
-    "identity" | "display" | "products" | "seo" | "settings"
-  >("identity");
-
-  useEffect(() => {
-    const fn = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", fn);
-    return () => window.removeEventListener("keydown", fn);
-  }, [onClose]);
-
-  const set = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
-  const handleNameChange = (name: string) => {
-    set("name", name);
-    if (mode === "add")
-      set(
-        "slug",
-        name
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/^-|-$/g, ""),
-      );
-  };
-  const handleHeroChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setHeroFile(file);
-    setHeroPreview(URL.createObjectURL(file));
-  };
-
-  const handleSubmit = async () => {
-    if (!form.name.trim() || !form.slug.trim() || !form.label.trim()) {
-      setError("Name, slug and label are required.");
-      return;
-    }
-    setLoading(true);
-    setError("");
-    try {
-      const fd = new FormData();
-      (
-        [
-          "name",
-          "slug",
-          "label",
-          "tagline",
-          "description",
-          "accentColor",
-          "tag",
-          "purity",
-          "seoTitle",
-          "seoDescription",
-          "sortOrder",
-        ] as const
-      ).forEach((k) => fd.append(k, String(form[k])));
-      fd.append("isActive", String(form.isActive));
-      // fd.append(
-      //   "breadcrumb",
-      //   JSON.stringify(
-      //     form.breadcrumb
-      //       .split(",")
-      //       .map((s) => s.trim())
-      //       .filter(Boolean),
-      //   ),
-      // );
-      fd.append(
-        "seoKeywords",
-        JSON.stringify(
-          form.seoKeywords
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean),
-        ),
-      );
-      fd.append("products", JSON.stringify(selectedProductIds));
-      if (heroFile) fd.append("heroImage", heroFile);
-      const url =
-        mode === "edit"
-          ? `${API_BASE}/api/collections/admin/${initial!._id}`
-          : `${API_BASE}/api/collections/admin/create`;
-      const res = await fetch(url, {
-        method: mode === "edit" ? "PUT" : "POST",
-        headers: authOnlyHeaders(),
-        body: fd,
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed");
-      onSuccess(
-        mode === "edit" ? `"${form.name}" updated.` : `"${form.name}" created.`,
-      );
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const inp =
-    "w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all bg-white";
-  const lbl =
-    "block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wider";
-  const TABS = [
-    { id: "identity" as const, label: "Identity" },
-    { id: "display" as const, label: "Display" },
-    {
-      id: "products" as const,
-      label: `Products${
-        selectedProductIds.length ? ` (${selectedProductIds.length})` : ""
-      }`,
-    },
-    { id: "seo" as const, label: "SEO" },
-    { id: "settings" as const, label: "Settings" },
-  ];
-
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 1100,
-        background: "rgba(10,8,5,0.55)",
-        backdropFilter: "blur(5px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 16,
-        overflowY: "auto",
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "100%",
-          maxWidth: 700,
-          background: "#fff",
-          borderRadius: 16,
-          boxShadow: "0 28px 70px rgba(0,0,0,0.22)",
-          animation: "cmFadeUp 0.25s ease",
-          overflow: "hidden",
-          margin: "auto",
-        }}
-      >
-        <div
-          style={{ padding: "20px 24px 0", borderBottom: "1px solid #F0EBE0" }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              marginBottom: 16,
-            }}
-          >
-            <div>
-              <p
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  color: "#B8AFA0",
-                  margin: 0,
-                }}
-              >
-                {mode === "add" ? "New Collection" : "Edit Collection"}
-              </p>
-              <h2
-                style={{
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: "#1a1a1a",
-                  margin: "3px 0 0",
-                }}
-              >
-                {mode === "add"
-                  ? "Create Collection"
-                  : `Editing "${initial?.name}"`}
-              </h2>
-            </div>
-            <button
-              onClick={onClose}
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: "50%",
-                border: "none",
-                background: "#F5F1E8",
-                color: "#666",
-                cursor: "pointer",
-                fontSize: 14,
-                flexShrink: 0,
-              }}
-            >
-              &#10005;
-            </button>
-          </div>
-          <div style={{ display: "flex", gap: 0, overflowX: "auto" }}>
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                style={{
-                  padding: "8px 16px",
-                  fontSize: 12,
-                  fontWeight: tab === t.id ? 700 : 500,
-                  color: tab === t.id ? "#D4A017" : "#888",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  borderBottom: `2px solid ${
-                    tab === t.id ? "#D4A017" : "transparent"
-                  }`,
-                  whiteSpace: "nowrap",
-                  transition: "color 0.15s",
-                }}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div
-          style={{ maxHeight: "62vh", overflowY: "auto", padding: "20px 24px" }}
-        >
-          {error && (
-            <div
-              style={{
-                background: "#FFF0F0",
-                border: "1px solid #FFCDD2",
-                color: "#c0392b",
-                borderRadius: 8,
-                padding: "10px 14px",
-                fontSize: 13,
-                marginBottom: 16,
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <span>&#9888; {error}</span>
-              <button
-                onClick={() => setError("")}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "#c0392b",
-                  cursor: "pointer",
-                  fontSize: 16,
-                }}
-              >
-                &#10005;
-              </button>
-            </div>
-          )}
-
-          {tab === "identity" && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-2">
-                <label className={lbl}>Collection Name *</label>
-                <input
-                  className={inp}
-                  value={form.name}
-                  onChange={(e) => handleNameChange(e.target.value)}
-                  placeholder="e.g. Bridal Gold"
-                />
-              </div>
-              <div>
-                <label className={lbl}>Slug *</label>
-                <input
-                  className={`${inp} font-mono text-xs`}
-                  value={form.slug}
-                  onChange={(e) => set("slug", e.target.value)}
-                  placeholder="bridal-gold"
-                />
-              </div>
-              <div>
-                <label className={lbl}>
-                  Label *{" "}
-                  <span
-                    style={{
-                      fontWeight: 400,
-                      textTransform: "none",
-                      letterSpacing: 0,
-                      color: "#aaa",
-                    }}
-                  >
-                    (display name)
-                  </span>
-                </label>
-                <input
-                  className={inp}
-                  value={form.label}
-                  onChange={(e) => set("label", e.target.value)}
-                  placeholder="Bridal Collection"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className={lbl}>Tagline</label>
-                <input
-                  className={inp}
-                  value={form.tagline}
-                  onChange={(e) => set("tagline", e.target.value)}
-                  placeholder="Crafted for your most precious moments"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className={lbl}>Description</label>
-                <textarea
-                  className={inp}
-                  rows={3}
-                  value={form.description}
-                  onChange={(e) => set("description", e.target.value)}
-                  placeholder="Collection description..."
-                  style={{ resize: "none" }}
-                />
-              </div>
-            </div>
-          )}
-
-          {tab === "display" && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-2">
-                <label className={lbl}>Hero Image</label>
-                <div
-                  onClick={() => heroInputRef.current?.click()}
-                  style={{
-                    border: "2px dashed #E5E0D4",
-                    borderRadius: 12,
-                    padding: 16,
-                    cursor: "pointer",
-                    textAlign: "center",
-                    background: "#FDFAF5",
-                    transition: "border-color 0.2s",
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.borderColor = "#D4A017")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.borderColor = "#E5E0D4")
-                  }
-                >
-                  {heroPreview ? (
-                    <div>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={heroPreview}
-                        alt="Hero preview"
-                        style={{
-                          width: "100%",
-                          height: 100,
-                          objectFit: "cover",
-                          borderRadius: 8,
-                        }}
-                      />
-                      <p style={{ fontSize: 11, color: "#aaa", marginTop: 6 }}>
-                        {heroFile
-                          ? heroFile.name
-                          : "Current image · click to replace"}
-                      </p>
-                    </div>
-                  ) : (
-                    <>
-                      <p style={{ fontSize: 22, margin: "0 0 4px" }}>
-                        &#128444;
-                      </p>
-                      <p style={{ fontSize: 13, color: "#888", margin: 0 }}>
-                        Click to upload hero image
-                      </p>
-                      <p
-                        style={{
-                          fontSize: 11,
-                          color: "#bbb",
-                          margin: "4px 0 0",
-                        }}
-                      >
-                        JPG, PNG, WebP · max 5 MB
-                      </p>
-                    </>
-                  )}
-                </div>
-                <input
-                  ref={heroInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  style={{ display: "none" }}
-                  onChange={handleHeroChange}
-                  onClick={(e) => ((e.target as HTMLInputElement).value = "")}
-                />
-              </div>
-              <div>
-                <label className={lbl}>Accent Color</label>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <div
-                    onClick={() => colorRef.current?.click()}
-                    style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: 8,
-                      background: form.accentColor,
-                      border: "1px solid #E5E0D4",
-                      flexShrink: 0,
-                      cursor: "pointer",
-                    }}
-                  />
-                  <input
-                    className={`${inp} font-mono text-xs flex-1`}
-                    value={form.accentColor}
-                    onChange={(e) => set("accentColor", e.target.value)}
-                    placeholder="rgba(0,36,16,0.88)"
-                  />
-                  <input
-                    ref={colorRef}
-                    type="color"
-                    style={{
-                      width: 0,
-                      height: 0,
-                      opacity: 0,
-                      position: "absolute",
-                    }}
-                    onChange={(e) => set("accentColor", e.target.value)}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className={lbl}>Tag</label>
-                <select
-                  className={inp}
-                  value={form.tag}
-                  onChange={(e) => set("tag", e.target.value)}
-                  style={{ cursor: "pointer" }}
-                >
-                  {TAGS.map((t) => (
-                    <option key={t} value={t}>
-                      {t || "None"}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {/* <div>
-                <label className={lbl}>Purity</label>
-                <select
-                  className={inp}
-                  value={form.purity}
-                  onChange={(e) => set("purity", e.target.value)}
-                  style={{ cursor: "pointer" }}
-                >
-                  {PURITIES.map((p) => (
-                    <option key={p}>{p}</option>
-                  ))}
-                </select>
-              </div> */}
-              {/* <div>
-                <label className={lbl}>
-                  Breadcrumb{" "}
-                  <span
-                    style={{
-                      fontWeight: 400,
-                      textTransform: "none",
-                      letterSpacing: 0,
-                      color: "#aaa",
-                    }}
-                  >
-                    (comma-separated)
-                  </span>
-                </label>
-                <input
-                  className={inp}
-                  value={form.breadcrumb}
-                  onChange={(e) => set("breadcrumb", e.target.value)}
-                  placeholder="Home, Collections, Bridal"
-                />
-              </div> */}
-            </div>
-          )}
-
-          {tab === "products" && (
-            <div>
-              <p
-                style={{
-                  fontSize: 13,
-                  color: "#777",
-                  marginBottom: 14,
-                  lineHeight: 1.5,
-                }}
-              >
-                Search and select products to assign to this collection.
-                Selected products will be linked when you save.
-              </p>
-              <ProductPicker
-                selected={selectedProductIds}
-                onChange={setSelectedProductIds}
-                onViewProduct={onViewProduct}
-              />
-            </div>
-          )}
-
-          {tab === "seo" && (
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <label className={lbl}>SEO Title</label>
-                <input
-                  className={inp}
-                  value={form.seoTitle}
-                  onChange={(e) => set("seoTitle", e.target.value)}
-                  placeholder="Bridal Gold | Rehnoor Jewels"
-                />
-              </div>
-              <div>
-                <label className={lbl}>SEO Description</label>
-                <textarea
-                  className={inp}
-                  rows={2}
-                  value={form.seoDescription}
-                  onChange={(e) => set("seoDescription", e.target.value)}
-                  placeholder="Exquisite bridal gold jewellery..."
-                  style={{ resize: "none" }}
-                />
-              </div>
-              <div>
-                <label className={lbl}>
-                  SEO Keywords{" "}
-                  <span
-                    style={{
-                      fontWeight: 400,
-                      textTransform: "none",
-                      letterSpacing: 0,
-                      color: "#aaa",
-                    }}
-                  >
-                    (comma-separated)
-                  </span>
-                </label>
-                <input
-                  className={inp}
-                  value={form.seoKeywords}
-                  onChange={(e) => set("seoKeywords", e.target.value)}
-                  placeholder="bridal gold, wedding jewellery"
-                />
-              </div>
-            </div>
-          )}
-
-          {tab === "settings" && (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={lbl}>Sort Order</label>
-                <input
-                  type="number"
-                  className={inp}
-                  value={form.sortOrder}
-                  onChange={(e) => set("sortOrder", e.target.value)}
-                  min="0"
-                  placeholder="0"
-                />
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "flex-end",
-                  paddingBottom: 2,
-                }}
-              >
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    cursor: "pointer",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={form.isActive}
-                    onChange={(e) => set("isActive", e.target.checked)}
-                    style={{
-                      width: 16,
-                      height: 16,
-                      accentColor: "#10b981",
-                      cursor: "pointer",
-                    }}
-                  />
-                  <span style={{ fontSize: 13, color: "#444" }}>
-                    Active (visible to customers)
-                  </span>
-                </label>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div
-          style={{
-            padding: "14px 24px",
-            borderTop: "1px solid #F0EBE0",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            background: "#FDFAF5",
-          }}
-        >
-          <span style={{ fontSize: 12, color: "#aaa" }}>
-            {selectedProductIds.length > 0
-              ? `${selectedProductIds.length} product${
-                  selectedProductIds.length !== 1 ? "s" : ""
-                } selected`
-              : "No products assigned yet"}
-          </span>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button
-              onClick={onClose}
-              style={{ ...btnOutline, cursor: "pointer" }}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={loading}
-              style={{
-                ...btnPrimary,
-                opacity: loading ? 0.6 : 1,
-                cursor: loading ? "wait" : "pointer",
-              }}
-            >
-              {loading
-                ? "Saving..."
-                : mode === "add"
-                ? "Create Collection"
-                : "Save Changes"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
@@ -2191,6 +1897,7 @@ export default function CollectionManagement() {
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const router = useRouter();
   const [modal, setModal] = useState<ModalState>({ type: "none" });
   const [productPopup, setProductPopup] = useState<ProductSummary | null>(null);
 
@@ -2227,6 +1934,15 @@ export default function CollectionManagement() {
   useEffect(() => {
     fetchCollections();
   }, [fetchCollections]);
+
+  // Success message handed over by the add/edit pages
+  useEffect(() => {
+    const flash = sessionStorage.getItem("cm_flash");
+    if (flash) {
+      sessionStorage.removeItem("cm_flash");
+      setModal({ type: "success", message: flash });
+    }
+  }, []);
 
   console.log(collections);
 
@@ -2321,26 +2037,11 @@ export default function CollectionManagement() {
         />
       )}
 
-      {(modal.type === "add" || modal.type === "edit") && (
-        <CollectionFormModal
-          mode={modal.type}
-          initial={modal.type === "edit" ? modal.collection : undefined}
-          onClose={() => setModal({ type: "none" })}
-          onSuccess={(msg) => {
-            setModal({ type: "success", message: msg });
-            fetchCollections();
-          }}
-          onViewProduct={(p) => setProductPopup(p)}
-        />
-      )}
-
       {modal.type === "view" && (
         <CollectionPopup
           collection={modal.collection}
           onClose={() => setModal({ type: "none" })}
-          onEdit={() =>
-            setModal({ type: "edit", collection: modal.collection })
-          }
+          onEdit={() => router.push(`/admin/collections/${modal.collection._id}`)}
           onDelete={() =>
             setModal({
               type: "confirm-delete",
@@ -2395,7 +2096,7 @@ export default function CollectionManagement() {
             </p>
           </div>
           <button
-            onClick={() => setModal({ type: "add" })}
+            onClick={() => router.push("/admin/collections/add")}
             style={{
               ...btnPrimary,
               display: "flex",
@@ -2703,7 +2404,7 @@ export default function CollectionManagement() {
                           </button>
                           <button
                             onClick={() =>
-                              setModal({ type: "edit", collection: col })
+                              router.push(`/admin/collections/${col._id}`)
                             }
                             style={{
                               ...actionBtn,
@@ -2781,7 +2482,7 @@ export default function CollectionManagement() {
                         No collections found
                         <div style={{ marginTop: 12 }}>
                           <button
-                            onClick={() => setModal({ type: "add" })}
+                            onClick={() => router.push("/admin/collections/add")}
                             style={{
                               ...btnPrimary,
                               cursor: "pointer",
@@ -2848,7 +2549,7 @@ export default function CollectionManagement() {
 
 // ─── Style tokens ─────────────────────────────────────────────────────────────
 
-const btnPrimary: React.CSSProperties = {
+export const btnPrimary: React.CSSProperties = {
   padding: "9px 20px",
   borderRadius: 9,
   border: "none",
@@ -2857,7 +2558,7 @@ const btnPrimary: React.CSSProperties = {
   fontWeight: 600,
   fontSize: 13,
 };
-const btnOutline: React.CSSProperties = {
+export const btnOutline: React.CSSProperties = {
   padding: "9px 16px",
   borderRadius: 9,
   border: "1.5px solid #E5E0D4",
