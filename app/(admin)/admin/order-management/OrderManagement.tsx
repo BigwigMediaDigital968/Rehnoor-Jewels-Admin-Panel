@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { exportOrdersToExcel, exportOrdersToPDF } from "@/utils/exportOrders";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -141,6 +142,7 @@ interface Order {
   trashedAt?: string | null;
   createdAt: string;
 }
+
 interface Pagination {
   total: number;
   page: number;
@@ -3462,6 +3464,7 @@ function InfoRow({
     </div>
   );
 }
+
 function StatsBar({
   stats,
   period,
@@ -3481,16 +3484,22 @@ function StatsBar({
     "90d": "last 90 days",
   };
   const periodLabel = rangeLabel || periodLabels[period] || "all time";
-  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  const plural = (n: number, word: string) =>
+    `${n} ${word}${n === 1 ? "" : "s"}`;
   const scope = filtered ? `${periodLabel}, filtered` : periodLabel;
+
+  // Calculate Not Delivered count
+  const deliveredCount = stats?.byStatus?.delivered ?? 0;
+  const totalCount = stats?.totalOrders ?? 0;
+  const notDeliveredCount = Math.max(0, totalCount - deliveredCount);
 
   return (
     <div style={{ marginBottom: 20 }}>
-      {/* 5-Column Stats Grid */}
+      {/* 6-Column Stats Grid (responsive wrap on smaller screens) */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(5, 1fr)",
+          gridTemplateColumns: "repeat(auto-fit, minmax(155px, 1fr))",
           gap: 12,
           marginBottom: 14,
         }}
@@ -3498,14 +3507,13 @@ function StatsBar({
         {[
           {
             label: "Total Orders",
-            value: stats?.totalOrders?.toLocaleString() || "0",
+            value: totalCount.toLocaleString(),
             sub: scope,
             icon: "📦",
             color: "#1a1a1a",
           },
           {
             label: "Net Revenue",
-            // Extract .total from the object
             value: stats
               ? inr(stats.netRevenue?.total ?? stats.period?.netRevenue ?? 0)
               : "—",
@@ -3519,7 +3527,6 @@ function StatsBar({
           },
           {
             label: "Gross Revenue",
-            // Extract .total from the object
             value: stats
               ? inr(
                   stats.grossRevenue?.total ??
@@ -3546,10 +3553,17 @@ function StatsBar({
           },
           {
             label: "Delivered",
-            value: stats?.byStatus?.delivered?.toString() || "0",
+            value: deliveredCount.toLocaleString(),
             sub: scope,
             icon: "✅",
             color: "#0284c7",
+          },
+          {
+            label: "Not Delivered",
+            value: notDeliveredCount.toLocaleString(),
+            sub: scope,
+            icon: "⏳",
+            color: "#d97706",
           },
         ].map(({ label, value, sub, icon, color, bgHighlight }) => (
           <div
@@ -4053,6 +4067,10 @@ export default function OrderManagement() {
   const [datePickerAlignRight, setDatePickerAlignRight] = useState(false);
   const datePickerRef = useRef<HTMLDivElement>(null);
 
+  const [exporting, setExporting] = useState<"excel" | "pdf" | null>(null);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
   // Close the date popover on outside click or Escape
   useEffect(() => {
     if (!isDatePickerOpen) return;
@@ -4192,6 +4210,8 @@ export default function OrderManagement() {
     fetchStats();
   }, [fetchOrders, fetchStats]);
 
+  // console.log(stats)
+
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
@@ -4260,6 +4280,53 @@ export default function OrderManagement() {
     startDate ||
     endDate
   );
+
+  useEffect(() => {
+    if (!isExportMenuOpen) return;
+    const onClickOutside = (e: MouseEvent) => {
+      if (!exportMenuRef.current?.contains(e.target as Node)) {
+        setIsExportMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [isExportMenuOpen]);
+
+  const handleExport = async (format: "excel" | "pdf") => {
+    setIsExportMenuOpen(false);
+    setExporting(format);
+    try {
+      const params = buildFilterParams();
+      params.set("page", "1");
+      params.set("limit", "10000"); // Fetch all matching orders
+
+      const res = await fetch(`${API_BASE}/api/orders/admin/all?${params}`, {
+        headers: authHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok)
+        throw new Error(data.message || "Failed to fetch orders for export");
+
+      const allOrders = data.data || [];
+      if (!allOrders.length) {
+        setModal({ type: "error", message: "No orders found to export." });
+        return;
+      }
+
+      if (format === "excel") {
+        exportOrdersToExcel(allOrders);
+      } else {
+        exportOrdersToPDF(allOrders);
+      }
+    } catch (e: unknown) {
+      setModal({
+        type: "error",
+        message: e instanceof Error ? e.message : "Export failed",
+      });
+    } finally {
+      setExporting(null);
+    }
+  };
 
   return (
     <>
@@ -4449,6 +4516,111 @@ export default function OrderManagement() {
               🗑 Trashed Orders
             </button>
           </div>
+
+          <div className="flex gap-2">
+  <button
+    onClick={fetchOrders}
+    style={{
+      ...btnOutline,
+      display: "flex",
+      alignItems: "center",
+      gap: 6,
+      cursor: "pointer",
+    }}
+  >
+    ↻ Refresh
+  </button>
+
+  {/* Export Dropdown Button */}
+  <div ref={exportMenuRef} style={{ position: "relative" }}>
+    <button
+      onClick={() => setIsExportMenuOpen((prev) => !prev)}
+      disabled={!!exporting}
+      style={{
+        ...btnOutline,
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        cursor: exporting ? "wait" : "pointer",
+        opacity: exporting ? 0.7 : 1,
+      }}
+    >
+      {exporting
+        ? `Exporting ${exporting.toUpperCase()}...`
+        : "⬇ Export Data ▾"}
+    </button>
+
+    {isExportMenuOpen && (
+      <div
+        style={{
+          position: "absolute",
+          right: 0,
+          top: "calc(100% + 6px)",
+          background: "#fff",
+          border: "1px solid #E5E0D4",
+          borderRadius: 10,
+          boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
+          minWidth: 185,
+          zIndex: 50,
+          overflow: "hidden",
+        }}
+      >
+        <button
+          onClick={() => handleExport("excel")}
+          style={{
+            width: "100%",
+            padding: "10px 14px",
+            textAlign: "left",
+            background: "transparent",
+            border: "none",
+            borderBottom: "1px solid #F3EFE6",
+            fontSize: 13,
+            fontWeight: 600,
+            color: "#166534",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          📊 Export as Excel (.xlsx)
+        </button>
+        <button
+          onClick={() => handleExport("pdf")}
+          style={{
+            width: "100%",
+            padding: "10px 14px",
+            textAlign: "left",
+            background: "transparent",
+            border: "none",
+            fontSize: 13,
+            fontWeight: 600,
+            color: "#b91c1c",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          📄 Export as PDF (.pdf)
+        </button>
+      </div>
+    )}
+  </div>
+
+  <button
+    onClick={() => setModal({ type: "trash-view" })}
+    style={{
+      ...btnOutline,
+      display: "flex",
+      alignItems: "center",
+      gap: 6,
+      cursor: "pointer",
+    }}
+  >
+    🗑 Trashed Orders
+  </button>
+</div>
         </div>
 
         {/* Stats */}
@@ -4514,155 +4686,6 @@ export default function OrderManagement() {
             </button>
           </div>
         )}
-
-        {/* Filters */}
-        {/* <div className="flex flex-wrap items-center gap-3 mb-5">
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
-              🔍
-            </span>
-            <input
-              placeholder="Order #, name, email..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              className="pl-9 pr-3 h-10 w-64 text-sm border border-gray-200 rounded-xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition"
-            />
-          </div>
-          {[
-            {
-              value: filterStatus,
-              onChange: (e: React.ChangeEvent<HTMLSelectElement>) => {
-                setFilterStatus(e.target.value);
-                setPage(1);
-              },
-              options: ["", ...ALL_STATUSES],
-              format: (s: string) =>
-                s ? STATUS_CFG[s as OrderStatus].label : "All statuses",
-            },
-            {
-              value: filterPaymentStatus,
-              onChange: (e: React.ChangeEvent<HTMLSelectElement>) => {
-                setFilterPaymentStatus(e.target.value);
-                setPage(1);
-              },
-              options: [
-                "",
-                "pending",
-                "initiated",
-                "paid",
-                "failed",
-                "refunded",
-                "partially_refunded",
-              ],
-              format: (s: string) => s || "All payments",
-            },
-            {
-              value: filterPaymentMethod,
-              onChange: (e: React.ChangeEvent<HTMLSelectElement>) => {
-                setFilterPaymentMethod(e.target.value);
-                setPage(1);
-              },
-              options: [
-                "",
-                "cod",
-                "razorpay",
-                "stripe",
-                "payu",
-                "upi",
-                "bank_transfer",
-                "other",
-              ],
-              format: (m: string) => (m ? m.toUpperCase() : "All methods"),
-            },
-            {
-              value: filterSource,
-              onChange: (e: React.ChangeEvent<HTMLSelectElement>) => {
-                setFilterSource(e.target.value);
-                setPage(1);
-              },
-              options: [
-                "",
-                "website",
-                "instagram",
-                "whatsapp",
-                "admin",
-                "app",
-                "other",
-              ],
-              format: (s: string) => s || "All sources",
-            },
-            {
-              value: filterPriority,
-              onChange: (e: React.ChangeEvent<HTMLSelectElement>) => {
-                setFilterPriority(e.target.value);
-                setPage(1);
-              },
-              options: ["", "true", "false"],
-              format: (v: string) =>
-                v === "true"
-                  ? "⚡ Priority"
-                  : v === "false"
-                  ? "Normal"
-                  : "Priority",
-            },
-          ].map((filter, idx) => (
-            <div key={idx} className="relative">
-              <select
-                value={filter.value}
-                onChange={filter.onChange}
-                className="appearance-none h-10 pl-3 pr-8 text-sm border border-gray-200 rounded-xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-400 transition cursor-pointer"
-              >
-                {filter.options.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {filter.format(opt)}
-                  </option>
-                ))}
-              </select>
-              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none">
-                ▼
-              </span>
-            </div>
-          ))}
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => {
-              setStartDate(e.target.value);
-              setPage(1);
-            }}
-            className="h-10 px-3 text-sm border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-          />
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => {
-              setEndDate(e.target.value);
-              setPage(1);
-            }}
-            className="h-10 px-3 text-sm border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-          />
-          {hasActiveFilters && (
-            <button
-              onClick={() => {
-                setSearch("");
-                setFilterStatus("");
-                setFilterPaymentStatus("");
-                setFilterPaymentMethod("");
-                setFilterSource("");
-                setFilterPriority("");
-                setStartDate("");
-                setEndDate("");
-                setPage(1);
-              }}
-              className="h-10 px-4 text-xs font-medium text-red-600 border border-red-200 rounded-xl bg-red-50 hover:bg-red-100 transition"
-            >
-              ✕ Clear
-            </button>
-          )}
-        </div> */}
 
         {/* Filters Header Bar */}
         <div className="flex flex-wrap items-center gap-3 mb-5">
@@ -4776,7 +4799,9 @@ export default function OrderManagement() {
             <button
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
-                setDatePickerAlignRight(rect.left + 288 > window.innerWidth - 16);
+                setDatePickerAlignRight(
+                  rect.left + 288 > window.innerWidth - 16,
+                );
                 setIsDatePickerOpen(!isDatePickerOpen);
               }}
               className={`h-10 px-3.5 text-sm font-medium border rounded-xl flex items-center gap-2 transition ${
@@ -4802,7 +4827,11 @@ export default function OrderManagement() {
 
             {/* Shopify-Style Date Popover Container */}
             {isDatePickerOpen && (
-              <div className={`absolute ${datePickerAlignRight ? "right-0" : "left-0"} mt-2 w-72 max-w-[calc(100vw-2rem)] bg-white border border-gray-200 rounded-2xl shadow-xl z-50 p-4 space-y-3`}>
+              <div
+                className={`absolute ${
+                  datePickerAlignRight ? "right-0" : "left-0"
+                } mt-2 w-72 max-w-[calc(100vw-2rem)] bg-white border border-gray-200 rounded-2xl shadow-xl z-50 p-4 space-y-3`}
+              >
                 <div className="flex items-center justify-between pb-2 border-b border-gray-100">
                   <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
                     Select Range
