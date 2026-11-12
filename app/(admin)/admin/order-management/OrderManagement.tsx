@@ -4489,7 +4489,7 @@ export default function OrderManagement() {
                 : "Manage all customer orders"}
             </p>
           </div>
-          <div className="flex gap-2">
+          {/* <div className="flex gap-2">
             <button
               onClick={fetchOrders}
               style={{
@@ -4515,7 +4515,7 @@ export default function OrderManagement() {
             >
               🗑 Trashed Orders
             </button>
-          </div>
+          </div> */}
 
           <div className="flex gap-2">
   <button
