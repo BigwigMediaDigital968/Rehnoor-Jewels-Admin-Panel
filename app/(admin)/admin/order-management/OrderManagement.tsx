@@ -161,6 +161,8 @@ interface Stats {
   revenue: RevenueMetric;
   netRevenue: RevenueMetric;
   grossRevenue: RevenueMetric;
+  // Unfiltered total of every order (all statuses incl. failed, no filters)
+  allOrdersGrossRevenue?: { total: number; orders: number };
   avgOrderValue?: number;
   period: {
     label: string;
@@ -3525,19 +3527,31 @@ function StatsBar({
             color: "#166534",
             bgHighlight: "#F0FFF4",
           },
+          // ── OLD Gross Revenue (filtered, valid statuses only) — uncomment to revert ──
+          // {
+          //   label: "Gross Revenue",
+          //   value: stats
+          //     ? inr(
+          //         stats.grossRevenue?.total ??
+          //           stats.revenue?.total ??
+          //           stats.period?.revenue ??
+          //           0,
+          //       )
+          //     : "—",
+          //   sub: `${plural(
+          //     stats?.grossRevenue?.paidOrders ?? stats?.totalOrders ?? 0,
+          //     "counted order",
+          //   )} · ${periodLabel}`,
+          //   icon: "📊",
+          //   color: "#1a1a1a",
+          // },
+          // ── NEW Gross Revenue: incoming business — all statuses (incl. failed/returned/refunded), follows filters ──
           {
             label: "Gross Revenue",
-            value: stats
-              ? inr(
-                  stats.grossRevenue?.total ??
-                    stats.revenue?.total ??
-                    stats.period?.revenue ??
-                    0,
-                )
-              : "—",
+            value: stats ? inr(stats.allOrdersGrossRevenue?.total ?? 0) : "—",
             sub: `${plural(
-              stats?.grossRevenue?.paidOrders ?? stats?.totalOrders ?? 0,
-              "counted order",
+              stats?.allOrdersGrossRevenue?.orders ?? 0,
+              "order",
             )} · ${periodLabel}`,
             icon: "📊",
             color: "#1a1a1a",
